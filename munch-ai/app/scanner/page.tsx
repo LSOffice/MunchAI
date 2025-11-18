@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Ingredient } from "../types";
+import { apiFetch } from "@/lib/utils";
 
 export default function Scanner() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const [uploadMethod, setUploadMethod] = useState<
     "upload" | "camera" | "manual" | null
@@ -16,6 +18,8 @@ export default function Scanner() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [manualForm, setManualForm] = useState({
     name: "",
     quantity: "",
@@ -26,19 +30,79 @@ export default function Scanner() {
 
   // Start camera stream
   const startCamera = async () => {
+    setCameraError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError("Camera API not supported in this browser.");
+        return;
+      }
+
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+      } catch (err) {
+        // Fallback: try any available camera
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
+        } catch (err2) {
+          console.error("Failed to access camera (fallback):", err2);
+          setCameraError(
+            "Unable to access camera. Check permissions and device settings.",
+          );
+          return;
+        }
+      }
+      if (stream) {
+        // Store the stream and flip the flag; the effect will attach it to the video
+        streamRef.current = stream;
         setCameraActive(true);
       }
     } catch (error) {
       console.error("Failed to access camera:", error);
-      alert("Unable to access camera. Please check permissions.");
+      setCameraError("Unable to access camera. Please check permissions.");
     }
   };
+
+  // Ensure video plays when camera becomes active
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch((err) => console.error("Play error:", err));
+    }
+  }, [cameraActive]);
+
+  // Auto-start camera when entering camera mode
+  useEffect(() => {
+    if (uploadMethod === "camera" && !cameraActive && !streamRef.current) {
+      startCamera();
+    }
+  }, [uploadMethod, cameraActive]);
+
+  // Stop camera when leaving camera mode or unmounting
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (uploadMethod !== "camera") {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      setCameraActive(false);
+    }
+  }, [uploadMethod]);
 
   // Stop camera stream
   const stopCamera = () => {
@@ -61,15 +125,19 @@ export default function Scanner() {
     context.drawImage(videoRef.current, 0, 0);
 
     const imageData = canvasRef.current.toDataURL("image/jpeg");
-    await processReceiptImage(imageData);
+    // Show preview first, allow user to confirm before processing
+    setPreviewImage(imageData);
+    // Stop camera so user can inspect the capture
+    stopCamera();
   };
 
   // Handle file upload
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = (file: File) => {
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
       const imageData = e.target?.result as string;
-      await processReceiptImage(imageData);
+      // Show preview first, allow user to confirm before processing
+      setPreviewImage(imageData);
     };
     reader.readAsDataURL(file);
   };
@@ -84,13 +152,12 @@ export default function Scanner() {
       // 2. Use OCR/ML model to extract item names, quantities, prices
       // 3. Parse ingredients from detected items
       // 4. Return standardized ingredient list with category suggestions
-      const response = await fetch("/api/scan", {
+      const response = await apiFetch("/api/scan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: {
           receipt: imageData,
           format: "base64",
-        }),
+        },
       });
 
       if (!response.ok) throw new Error("Failed to process receipt");
@@ -106,14 +173,27 @@ export default function Scanner() {
     }
   };
 
+  const confirmPreview = async () => {
+    if (!previewImage) return;
+    // Send the preview image for processing
+    console.log("Confirming preview...");
+    await processReceiptImage(previewImage);
+    setPreviewImage(null);
+  };
+
+  const retake = () => {
+    console.log("Retaking photo...");
+    setPreviewImage(null);
+    if (uploadMethod === "camera") startCamera();
+  };
+
   // Add ingredients to inventory
   const handleAddIngredients = async () => {
     try {
       for (const ingredient of ingredients) {
-        await fetch("/api/ingredients", {
+        await apiFetch("/api/ingredients", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(ingredient),
+          body: ingredient,
         });
       }
       router.push("/inventory");
@@ -183,10 +263,43 @@ export default function Scanner() {
             {uploadMethod === "camera" ? "Take Photo" : "Upload Receipt"}
           </h1>
 
-          <div className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 sm:p-12 text-center dark:border-gray-700 dark:bg-gray-800">
+          <div className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 sm:p-12 text-center dark:border-gray-700 dark:bg-gray-800 min-h-96">
             {uploadMethod === "camera" ? (
               <>
-                {!cameraActive && !isProcessing ? (
+                {cameraError && (
+                  <div className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-left text-xs sm:text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+                    {cameraError}
+                  </div>
+                )}
+                {previewImage ? (
+                  <>
+                    <div className="mb-4 bg-yellow-100 border-4 border-yellow-400 p-4 rounded-lg">
+                      <p className="text-sm font-bold text-yellow-800 mb-2">
+                        📷 Photo Preview
+                      </p>
+                      <img
+                        src={previewImage}
+                        alt="Preview"
+                        className="w-full rounded-lg max-h-96 object-contain"
+                      />
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+                      <button
+                        onClick={retake}
+                        className="rounded border border-gray-300 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                      >
+                        Retake
+                      </button>
+                      <button
+                        onClick={confirmPreview}
+                        disabled={isProcessing}
+                        className="rounded bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                      >
+                        Confirm & Process
+                      </button>
+                    </div>
+                  </>
+                ) : !cameraActive && !isProcessing ? (
                   <>
                     <div className="mb-4 text-4xl sm:text-6xl">📷</div>
                     <p className="mb-4 text-xs sm:text-base text-gray-600 dark:text-gray-400">
@@ -201,12 +314,24 @@ export default function Scanner() {
                   </>
                 ) : cameraActive && !isProcessing ? (
                   <>
-                    <div className="relative mb-4 inline-block w-full">
+                    <div className="relative mb-4 w-full bg-black rounded-lg overflow-hidden">
                       <video
                         ref={videoRef}
                         autoPlay
                         playsInline
-                        className="w-full rounded-lg max-h-96 object-cover"
+                        muted
+                        style={{
+                          width: "100%",
+                          height: "384px",
+                          display: "block",
+                        }}
+                        onLoadedMetadata={() => {
+                          try {
+                            videoRef.current?.play();
+                          } catch (e) {
+                            console.error("Play error on metadata:", e);
+                          }
+                        }}
                       />
                       {/* Overlay guides */}
                       <div className="absolute inset-0 rounded-lg pointer-events-none">
@@ -266,7 +391,35 @@ export default function Scanner() {
               </>
             ) : (
               <>
-                {!isProcessing ? (
+                {previewImage ? (
+                  <>
+                    <div className="mb-4 bg-yellow-100 border-4 border-yellow-400 p-4 rounded-lg">
+                      <p className="text-sm font-bold text-yellow-800 mb-2">
+                        📷 Image Preview
+                      </p>
+                      <img
+                        src={previewImage}
+                        alt="Preview"
+                        className="w-full rounded-lg max-h-96 object-contain"
+                      />
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+                      <button
+                        onClick={() => setPreviewImage(null)}
+                        className="rounded border border-gray-300 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                      >
+                        Choose Another
+                      </button>
+                      <button
+                        onClick={confirmPreview}
+                        disabled={isProcessing}
+                        className="rounded bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                      >
+                        Confirm & Process
+                      </button>
+                    </div>
+                  </>
+                ) : !isProcessing ? (
                   <>
                     <div className="mb-4 text-4xl sm:text-6xl">📁</div>
                     <p className="mb-4 text-xs sm:text-base text-gray-600 dark:text-gray-400">
@@ -284,6 +437,7 @@ export default function Scanner() {
                       accept="image/*"
                       onChange={(e) => {
                         if (e.target.files?.[0]) {
+                          console.log("File selected:", e.target.files[0].name);
                           handleFileUpload(e.target.files[0]);
                         }
                       }}
@@ -494,7 +648,7 @@ export default function Scanner() {
                       <button
                         onClick={() =>
                           setIngredients(
-                            ingredients.filter((_, i) => i !== idx)
+                            ingredients.filter((_, i) => i !== idx),
                           )
                         }
                         className="ml-2 flex-shrink-0 text-red-500 hover:text-red-700"

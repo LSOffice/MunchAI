@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { UserProfile } from "../types";
+import { apiFetch } from "@/lib/utils";
 
 export default function Settings() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "profile" | "preferences" | "account"
   >("profile");
@@ -17,7 +21,7 @@ export default function Settings() {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const response = await fetch("/api/user/profile");
+        const response = await apiFetch("/api/user/profile");
         const data = await response.json();
         setProfile(data.data || {});
         setFormData(data.data || {});
@@ -63,10 +67,9 @@ export default function Settings() {
     if (!formData) return;
     setIsSaving(true);
     try {
-      const response = await fetch("/api/user/profile", {
+      const response = await apiFetch("/api/user/profile", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: formData,
       });
 
       if (!response.ok) throw new Error("Failed to save profile");
@@ -261,7 +264,7 @@ export default function Settings() {
                     <input
                       type="checkbox"
                       checked={(formData.dietaryRestrictions || []).includes(
-                        option
+                        option,
                       )}
                       onChange={() => toggleDietary(option)}
                       className="h-4 w-4 rounded border-gray-300 text-orange-600"
@@ -315,7 +318,7 @@ export default function Settings() {
                     <input
                       type="checkbox"
                       checked={(formData.cuisinePreferences || []).includes(
-                        option
+                        option,
                       )}
                       onChange={() => toggleCuisine(option)}
                       className="h-4 w-4 rounded border-gray-300 text-orange-600"
@@ -353,36 +356,78 @@ export default function Settings() {
                 Change Password
               </h3>
               <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
-                  />
+                <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-8 dark:border-gray-800 dark:bg-gray-800">
+                  <h3 className="mb-4 text-base sm:text-xl font-semibold text-gray-900 dark:text-white">
+                    Passkeys
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Secure, passwordless sign-in. Register a passkey tied to
+                    this device.
+                  </p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const start = await fetch(
+                          "/api/auth/passkey/generate-registration-options",
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ email: profile.email }),
+                          },
+                        );
+                        if (!start.ok)
+                          throw new Error(
+                            "Failed to start passkey registration",
+                          );
+                        const options = await start.json();
+                        // @ts-ignore
+                        const cred: PublicKeyCredential =
+                          await navigator.credentials.create({
+                            publicKey: options,
+                          });
+                        const attResp =
+                          cred.response as AuthenticatorAttestationResponse;
+                        const credential = {
+                          id: cred.id,
+                          rawId: Array.from(new Uint8Array(cred.rawId)),
+                          type: cred.type,
+                          response: {
+                            clientDataJSON: Array.from(
+                              new Uint8Array(attResp.clientDataJSON),
+                            ),
+                            attestationObject: Array.from(
+                              new Uint8Array(attResp.attestationObject),
+                            ),
+                          },
+                          transports: (cred as any).transports || [],
+                          clientExtensionResults:
+                            cred.getClientExtensionResults(),
+                        };
+                        const verify = await fetch(
+                          "/api/auth/passkey/verify-registration",
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              email: profile.email,
+                              credential,
+                            }),
+                          },
+                        );
+                        if (!verify.ok)
+                          throw new Error("Passkey verification failed");
+                        alert(
+                          "Passkey registered! You can now sign in with it.",
+                        );
+                      } catch (e: any) {
+                        alert(e.message || "Passkey registration failed");
+                      }
+                    }}
+                    className="rounded-lg bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                  >
+                    Register Passkey
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Confirm Password
-                  </label>
-                  <input
-                    type="password"
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-                <button className="rounded-lg bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700">
-                  Update Password
-                </button>
               </div>
             </div>
 
@@ -394,9 +439,49 @@ export default function Settings() {
               <p className="mb-4 text-xs sm:text-sm text-red-800 dark:text-red-300">
                 These actions cannot be undone.
               </p>
-              <button className="rounded-lg bg-red-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700">
-                Delete Account
-              </button>
+              <div className="space-y-3">
+                <button
+                  onClick={async () => {
+                    await signOut({ redirect: false });
+                    router.push("/");
+                  }}
+                  className="w-full rounded-lg bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                >
+                  Sign Out
+                </button>
+                <button
+                  onClick={async () => {
+                    const confirmed = confirm(
+                      "Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently deleted.",
+                    );
+                    if (!confirmed) return;
+
+                    try {
+                      const response = await apiFetch(
+                        "/api/user/delete-account",
+                        {
+                          method: "DELETE",
+                        },
+                      );
+
+                      if (!response.ok) {
+                        throw new Error("Failed to delete account");
+                      }
+
+                      // Sign out and redirect
+                      await signOut({ redirect: false });
+                      // Reload the page to clear all session data and update navbar
+                      window.location.href = "/";
+                    } catch (error) {
+                      console.error("Failed to delete account:", error);
+                      alert("Failed to delete account. Please try again.");
+                    }
+                  }}
+                  className="w-full rounded-lg bg-red-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700"
+                >
+                  Delete Account
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -3,6 +3,7 @@
 import { useState, use, useEffect } from "react";
 import Link from "next/link";
 import { Recipe } from "@/app/types";
+import { apiFetch } from "@/lib/utils";
 
 export default function RecipeDetail({
   params,
@@ -20,7 +21,7 @@ export default function RecipeDetail({
   useEffect(() => {
     const loadRecipe = async () => {
       try {
-        const response = await fetch(`/api/recipes/${id}`);
+        const response = await apiFetch(`/api/recipes/${id}`);
         const data = await response.json();
         setRecipe(data.data);
         setServings(data.data?.servings || 2);
@@ -38,10 +39,9 @@ export default function RecipeDetail({
     if (!recipe) return;
     try {
       if (!isSaved) {
-        await fetch("/api/user/saved-recipes", {
+        await apiFetch("/api/user/saved-recipes", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...recipe, saved: true }),
+          body: { ...recipe, saved: true },
         });
       }
       setIsSaved(!isSaved);
@@ -324,7 +324,7 @@ export default function RecipeDetail({
                       <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">
                         {Math.round(
                           (recipe.nutrition.calories / recipe.servings) *
-                            servings
+                            servings,
                         )}
                       </p>
                     </div>
@@ -335,7 +335,7 @@ export default function RecipeDetail({
                       <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">
                         {Math.round(
                           (recipe.nutrition.protein / recipe.servings) *
-                            servings
+                            servings,
                         )}
                         g
                       </p>
@@ -346,7 +346,7 @@ export default function RecipeDetail({
                       </p>
                       <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">
                         {Math.round(
-                          (recipe.nutrition.carbs / recipe.servings) * servings
+                          (recipe.nutrition.carbs / recipe.servings) * servings,
                         )}
                         g
                       </p>
@@ -357,7 +357,7 @@ export default function RecipeDetail({
                       </p>
                       <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">
                         {Math.round(
-                          (recipe.nutrition.fat / recipe.servings) * servings
+                          (recipe.nutrition.fat / recipe.servings) * servings,
                         )}
                         g
                       </p>

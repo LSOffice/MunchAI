@@ -34,3 +34,20 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Backend Auth + Persistence
+
+This app now uses MongoDB Atlas and NextAuth for authentication.
+
+- Copy `.env.example` to `.env.local` and set:
+  - `MONGODB_URI` — your MongoDB Atlas connection string
+  - `NEXTAUTH_SECRET` — a random secret (e.g. `openssl rand -base64 32`)
+  - `NEXTAUTH_URL` — usually `http://localhost:3000` in dev
+
+- Pages:
+  - `/register` — Create an account
+  - `/login` — Sign in with email/password
+
+- Protected pages: `/dashboard`, `/inventory`, `/saved`, `/settings`
+
+APIs for inventory, saved recipes, meal plans, and profile are now user-scoped and persisted in MongoDB.

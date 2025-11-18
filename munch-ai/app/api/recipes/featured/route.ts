@@ -1,17 +1,34 @@
 import { NextRequest } from "next/server";
 import { successResponse, errorResponse, validateRequest } from "@/lib/utils";
-import { db } from "@/lib/db";
+import { connectMongo } from "@/lib/mongodb";
+import RecipeModel from "@/models/Recipe";
 
 export async function GET(request: NextRequest) {
   try {
     validateRequest("GET", ["GET"]);
 
-    const all = db?.recipes?.getAll ? db.recipes.getAll() : [];
-    // If recipes have an explicit `featured` flag, use it. Otherwise, fall back to `source === 'verified'`.
-    const featured = all.filter((r: any) =>
-      typeof r.featured === "boolean" ? r.featured : r.source === "verified",
-    );
-
+    await connectMongo();
+    const docs = await RecipeModel.find({
+      $or: [{ featured: true }, { source: "verified" }],
+    }).lean();
+    const featured = docs.map((d) => ({
+      id: String(d._id),
+      title: d.title,
+      description: d.description,
+      servings: d.servings,
+      prepTime: d.prepTime,
+      cookTime: d.cookTime,
+      difficulty: d.difficulty,
+      ingredients: d.ingredients,
+      instructions: d.instructions,
+      tags: d.tags,
+      nutrition: d.nutrition,
+      imageUrl: d.imageUrl,
+      featured: d.featured,
+      source: d.source,
+      rating: d.rating,
+      saved: false,
+    }));
     return successResponse(featured);
   } catch (error) {
     return errorResponse(error);

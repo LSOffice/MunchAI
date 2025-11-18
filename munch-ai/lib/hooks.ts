@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 type FetchState<T> = {
   data: T | null;
@@ -21,6 +22,7 @@ export function useAPI<T>(initialData: T | null = null) {
     loading: false,
     error: null,
   });
+  const router = useRouter();
 
   const fetch = useCallback(
     async (
@@ -41,6 +43,15 @@ export function useAPI<T>(initialData: T | null = null) {
           body: options?.body ? JSON.stringify(options.body) : undefined,
         });
 
+        // Handle 401 Unauthorized
+        if (response.status === 401) {
+          // Store the message in sessionStorage to display on signup page
+          sessionStorage.setItem("authError", "You're not logged in!");
+          router.push("/login");
+          setState({ data: state.data, loading: false, error: null });
+          return;
+        }
+
         const result: APIResponse<T> = await response.json();
 
         if (!result.success) {
@@ -55,7 +66,7 @@ export function useAPI<T>(initialData: T | null = null) {
         throw err;
       }
     },
-    [state.data],
+    [state.data, router],
   );
 
   return { ...state, fetch };

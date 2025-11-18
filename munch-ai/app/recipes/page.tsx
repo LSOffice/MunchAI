@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import RecipeCard from "../components/RecipeCard";
 import { Recipe, Ingredient } from "../types";
+import { apiFetch } from "@/lib/utils";
 
 // Updated mock featured recipes to match the Recipe interface
 
@@ -110,7 +111,7 @@ export default function RecipeSearch() {
     let mounted = true;
     (async () => {
       try {
-        const res = await fetch("/api/recipes/featured");
+        const res = await apiFetch("/api/recipes/featured");
         const data = await res.json();
         if (mounted) setFeaturedRecipes(data.data || []);
       } catch (e) {
@@ -136,7 +137,7 @@ export default function RecipeSearch() {
         params.append("difficulty", difficulty);
       }
 
-      const response = await fetch(`/api/recipes?${params.toString()}`);
+      const response = await apiFetch(`/api/recipes?${params.toString()}`);
       const data = await response.json();
       setRecipes(data.data || []);
     } catch (error) {
@@ -164,10 +165,9 @@ export default function RecipeSearch() {
 
   const handleSaveRecipe = async (recipeId: string) => {
     try {
-      const response = await fetch("/api/user/saved-recipes", {
+      const response = await apiFetch("/api/user/saved-recipes", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipeId }),
+        body: { recipeId },
       });
 
       if (!response.ok) {

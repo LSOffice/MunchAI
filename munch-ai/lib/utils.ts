@@ -78,3 +78,33 @@ export function validateRequest(method: string, allowedMethods: string[]) {
     );
   }
 }
+
+// Client-side fetch wrapper that handles 401 errors
+export async function apiFetch(
+  url: string,
+  options?: {
+    method?: string;
+    body?: any;
+    headers?: Record<string, string>;
+  },
+) {
+  const response = await fetch(url, {
+    method: options?.method || "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
+    body: options?.body ? JSON.stringify(options.body) : undefined,
+  });
+
+  // Handle 401 Unauthorized by redirecting to login
+  if (response.status === 401) {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("authError", "You're not logged in!");
+      window.location.href = "/login";
+    }
+    throw new APIError(401, "Unauthorized", "UNAUTHORIZED");
+  }
+
+  return response;
+}

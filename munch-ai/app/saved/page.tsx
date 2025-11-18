@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import RecipeCard from "../components/RecipeCard";
 import { Recipe, SavedRecipe, MealPlanEntry } from "../types";
+import { apiFetch } from "@/lib/utils";
 
 export default function SavedRecipes() {
   const [activeTab, setActiveTab] = useState<"saved" | "mealplan">("saved");
@@ -15,8 +16,8 @@ export default function SavedRecipes() {
     const loadData = async () => {
       try {
         const [savedRes, mealRes] = await Promise.all([
-          fetch("/api/user/saved-recipes"),
-          fetch("/api/user/meal-plan"),
+          apiFetch("/api/user/saved-recipes"),
+          apiFetch("/api/user/meal-plan"),
         ]);
 
         const [savedData, mealData] = await Promise.all([
@@ -38,7 +39,7 @@ export default function SavedRecipes() {
 
   const handleRemoveSaved = async (recipeId: string) => {
     try {
-      await fetch(`/api/user/saved-recipes/${recipeId}`, {
+      await apiFetch(`/api/user/saved-recipes/${recipeId}`, {
         method: "DELETE",
       });
 
@@ -60,16 +61,19 @@ export default function SavedRecipes() {
     }
   };
 
-  const groupedMealPlan = mealPlan.reduce((acc, entry) => {
-    const date = new Date(entry.date).toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(entry);
-    return acc;
-  }, {} as Record<string, MealPlanEntry[]>);
+  const groupedMealPlan = mealPlan.reduce(
+    (acc, entry) => {
+      const date = new Date(entry.date).toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(entry);
+      return acc;
+    },
+    {} as Record<string, MealPlanEntry[]>,
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Recipe, Ingredient, SavedRecipe, MealPlanEntry } from "@/app/types";
+import { apiFetch } from "@/lib/utils";
 
 export default function Dashboard() {
   const [recentRecipes, setRecentRecipes] = useState<Recipe[]>([]);
@@ -16,10 +17,10 @@ export default function Dashboard() {
       try {
         const [recipesRes, ingredientsRes, savedRes, mealRes] =
           await Promise.all([
-            fetch("/api/recipes"),
-            fetch("/api/ingredients"),
-            fetch("/api/user/saved-recipes"),
-            fetch("/api/user/meal-plan"),
+            apiFetch("/api/recipes"),
+            apiFetch("/api/ingredients"),
+            apiFetch("/api/user/saved-recipes"),
+            apiFetch("/api/user/meal-plan"),
           ]);
 
         const [recipesData, ingredientsData, savedData, mealData] =
@@ -47,7 +48,7 @@ export default function Dashboard() {
   const expiringCount = ingredients.filter((ing) => {
     const daysLeft = Math.floor(
       (new Date(ing.expirationDate).getTime() - new Date().getTime()) /
-        (1000 * 60 * 60 * 24)
+        (1000 * 60 * 60 * 24),
     );
     return daysLeft <= 3 && daysLeft >= 0;
   }).length;

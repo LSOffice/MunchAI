@@ -5,8 +5,9 @@ import {
   validateRequest,
   APIError,
 } from "@/lib/utils";
-import { db } from "@/lib/db";
-import { Recipe } from "@/app/types";
+import { connectMongo } from "@/lib/mongodb";
+import RecipeModel from "@/models/Recipe";
+import { auth } from "@/lib/auth";
 
 // GET /api/recipes/:id
 export async function GET(
@@ -16,16 +17,29 @@ export async function GET(
   try {
     validateRequest("GET", ["GET", "PATCH", "DELETE"]);
     const { id } = await params;
-
-    const recipe: Recipe | undefined = db?.recipes?.getById
-      ? db.recipes.getById(id)
-      : undefined;
-
-    if (!recipe) {
+    await connectMongo();
+    const doc = await RecipeModel.findById(id).lean();
+    if (!doc) {
       throw new APIError(404, "Recipe not found", "NOT_FOUND");
     }
-
-    return successResponse(recipe);
+    return successResponse({
+      id: String(doc._id),
+      title: doc.title,
+      description: doc.description,
+      servings: doc.servings,
+      prepTime: doc.prepTime,
+      cookTime: doc.cookTime,
+      difficulty: doc.difficulty,
+      ingredients: doc.ingredients,
+      instructions: doc.instructions,
+      tags: doc.tags,
+      nutrition: doc.nutrition,
+      imageUrl: doc.imageUrl,
+      featured: doc.featured,
+      source: doc.source,
+      rating: doc.rating,
+      saved: false,
+    });
   } catch (error) {
     return errorResponse(error);
   }
@@ -38,22 +52,36 @@ export async function PATCH(
 ) {
   try {
     validateRequest("PATCH", ["GET", "PATCH", "DELETE"]);
+    const session = (await auth()) as any;
+    const userId = session?.user?.id as string | undefined;
+    if (!userId) {
+      throw new APIError(401, "Unauthorized", "UNAUTHORIZED");
+    }
     const { id } = await params;
     const body = await request.json();
-
-    if (!db?.recipes || typeof db.recipes.update !== "function") {
-      throw new APIError(
-        501,
-        "Update not supported without DB",
-        "NOT_IMPLEMENTED",
-      );
-    }
-
-    const existing = db.recipes.getById(id);
-    if (!existing) throw new APIError(404, "Recipe not found", "NOT_FOUND");
-
-    const updated = db.recipes.update(id, body as Partial<Recipe>);
-    return successResponse(updated);
+    await connectMongo();
+    const updated = await RecipeModel.findByIdAndUpdate(id, body, {
+      new: true,
+    }).lean();
+    if (!updated) throw new APIError(404, "Recipe not found", "NOT_FOUND");
+    return successResponse({
+      id: String(updated._id),
+      title: updated.title,
+      description: updated.description,
+      servings: updated.servings,
+      prepTime: updated.prepTime,
+      cookTime: updated.cookTime,
+      difficulty: updated.difficulty,
+      ingredients: updated.ingredients,
+      instructions: updated.instructions,
+      tags: updated.tags,
+      nutrition: updated.nutrition,
+      imageUrl: updated.imageUrl,
+      featured: updated.featured,
+      source: updated.source,
+      rating: updated.rating,
+      saved: false,
+    });
   } catch (error) {
     return errorResponse(error);
   }
@@ -66,19 +94,15 @@ export async function DELETE(
 ) {
   try {
     validateRequest("DELETE", ["GET", "PATCH", "DELETE"]);
-    const { id } = await params;
-
-    if (!db?.recipes || typeof db.recipes.delete !== "function") {
-      throw new APIError(
-        501,
-        "Delete not supported without DB",
-        "NOT_IMPLEMENTED",
-      );
+    const session = (await auth()) as any;
+    const userId = session?.user?.id as string | undefined;
+    if (!userId) {
+      throw new APIError(401, "Unauthorized", "UNAUTHORIZED");
     }
-
-    const ok = db.recipes.delete(id);
-    if (!ok) throw new APIError(404, "Recipe not found", "NOT_FOUND");
-
+    const { id } = await params;
+    await connectMongo();
+    const res = await RecipeModel.findByIdAndDelete(id);
+    if (!res) throw new APIError(404, "Recipe not found", "NOT_FOUND");
     return successResponse({ deleted: true });
   } catch (error) {
     return errorResponse(error);

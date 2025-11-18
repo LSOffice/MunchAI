@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
+import LandingNavbar from "./components/LandingNavbar";
+import { getServerSession } from "next-auth/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,17 +21,19 @@ export const metadata: Metadata = {
     "Find recipes based on ingredients you have. Scan receipts, manage inventory, and discover AI-powered recipes.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession();
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Navbar />
+        {session ? <Navbar /> : <LandingNavbar />}
         {children}
       </body>
     </html>
