@@ -132,23 +132,23 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-4xl px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="mb-2 text-3xl font-bold text-gray-900 dark:text-white">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
             Settings ⚙️
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-xs sm:text-base text-gray-600 dark:text-gray-400">
             Manage your profile and preferences
           </p>
         </div>
 
         {/* Tabs */}
-        <div className="mb-8 border-b border-gray-200 dark:border-gray-800">
-          <div className="flex gap-8">
+        <div className="mb-6 sm:mb-8 border-b border-gray-200 dark:border-gray-800 overflow-x-auto">
+          <div className="flex gap-4 sm:gap-8">
             <button
               onClick={() => setActiveTab("profile")}
-              className={`pb-3 font-semibold transition-colors ${
+              className={`pb-2 sm:pb-3 text-xs sm:text-base font-semibold transition-colors whitespace-nowrap ${
                 activeTab === "profile"
                   ? "border-b-2 border-orange-500 text-orange-600 dark:text-orange-400"
                   : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -158,7 +158,7 @@ export default function Settings() {
             </button>
             <button
               onClick={() => setActiveTab("preferences")}
-              className={`pb-3 font-semibold transition-colors ${
+              className={`pb-2 sm:pb-3 text-xs sm:text-base font-semibold transition-colors whitespace-nowrap ${
                 activeTab === "preferences"
                   ? "border-b-2 border-orange-500 text-orange-600 dark:text-orange-400"
                   : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -168,7 +168,7 @@ export default function Settings() {
             </button>
             <button
               onClick={() => setActiveTab("account")}
-              className={`pb-3 font-semibold transition-colors ${
+              className={`pb-2 sm:pb-3 text-xs sm:text-base font-semibold transition-colors whitespace-nowrap ${
                 activeTab === "account"
                   ? "border-b-2 border-orange-500 text-orange-600 dark:text-orange-400"
                   : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
@@ -181,25 +181,25 @@ export default function Settings() {
 
         {/* Profile Tab */}
         {activeTab === "profile" && (
-          <div className="rounded-lg border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-800">
-            <div className="mb-8 flex items-center gap-6">
-              <div className="h-24 w-24 rounded-full bg-gradient-to-br from-orange-400 to-orange-600"></div>
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-8 dark:border-gray-800 dark:bg-gray-800">
+            <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6">
+              <div className="h-16 sm:h-24 w-16 sm:w-24 flex-shrink-0 rounded-full bg-gradient-to-br from-orange-400 to-orange-600"></div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white">
                   {profile.name}
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-xs sm:text-base text-gray-600 dark:text-gray-400 break-all">
                   {profile.email}
                 </p>
-                <button className="mt-2 text-sm text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300">
+                <button className="mt-2 text-xs sm:text-sm text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300">
                   Change avatar →
                 </button>
               </div>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                   Full Name
                 </label>
                 <input
@@ -208,12 +208,12 @@ export default function Settings() {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
+                  className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                   Email
                 </label>
                 <input
@@ -222,12 +222,12 @@ export default function Settings() {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
+                  className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
                 />
               </div>
 
               {saveSuccess && (
-                <div className="rounded-lg bg-green-100 p-4 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                <div className="rounded-lg bg-green-100 p-3 sm:p-4 text-xs sm:text-sm text-green-800 dark:bg-green-900/20 dark:text-green-400">
                   ✓ Profile updated successfully!
                 </div>
               )}
@@ -235,7 +235,7 @@ export default function Settings() {
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="rounded-lg bg-orange-500 px-6 py-3 font-medium text-white transition-colors hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700"
+                className="rounded-lg bg-orange-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700"
               >
                 {isSaving ? "Saving..." : "Save Changes"}
               </button>
@@ -245,28 +245,28 @@ export default function Settings() {
 
         {/* Preferences Tab */}
         {activeTab === "preferences" && (
-          <div className="space-y-8">
+          <div className="space-y-4 sm:space-y-8">
             {/* Dietary Restrictions */}
-            <div className="rounded-lg border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-800">
-              <h3 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+            <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-8 dark:border-gray-800 dark:bg-gray-800">
+              <h3 className="mb-4 text-base sm:text-xl font-semibold text-gray-900 dark:text-white">
                 Dietary Restrictions
               </h3>
-              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              <p className="mb-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                 Select any dietary restrictions you have. We'll filter recipes
                 accordingly.
               </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {dietaryOptions.map((option) => (
                   <label key={option} className="flex items-center">
                     <input
                       type="checkbox"
                       checked={(formData.dietaryRestrictions || []).includes(
-                        option,
+                        option
                       )}
                       onChange={() => toggleDietary(option)}
                       className="h-4 w-4 rounded border-gray-300 text-orange-600"
                     />
-                    <span className="ml-2 capitalize text-gray-700 dark:text-gray-300">
+                    <span className="ml-2 text-xs sm:text-sm capitalize text-gray-700 dark:text-gray-300">
                       {option}
                     </span>
                   </label>
@@ -275,15 +275,15 @@ export default function Settings() {
             </div>
 
             {/* Allergies */}
-            <div className="rounded-lg border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-800">
-              <h3 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+            <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-8 dark:border-gray-800 dark:bg-gray-800">
+              <h3 className="mb-4 text-base sm:text-xl font-semibold text-gray-900 dark:text-white">
                 Allergies
               </h3>
-              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              <p className="mb-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                 Select all allergies to keep you safe. Recipes will exclude
                 these ingredients.
               </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {allergyOptions.map((option) => (
                   <label key={option} className="flex items-center">
                     <input
@@ -292,7 +292,7 @@ export default function Settings() {
                       onChange={() => toggleAllergy(option)}
                       className="h-4 w-4 rounded border-gray-300 text-orange-600"
                     />
-                    <span className="ml-2 capitalize text-gray-700 dark:text-gray-300">
+                    <span className="ml-2 text-xs sm:text-sm capitalize text-gray-700 dark:text-gray-300">
                       {option}
                     </span>
                   </label>
@@ -301,26 +301,26 @@ export default function Settings() {
             </div>
 
             {/* Cuisine Preferences */}
-            <div className="rounded-lg border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-800">
-              <h3 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+            <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-8 dark:border-gray-800 dark:bg-gray-800">
+              <h3 className="mb-4 text-base sm:text-xl font-semibold text-gray-900 dark:text-white">
                 Favorite Cuisines
               </h3>
-              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              <p className="mb-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                 Select your preferred cuisines to get personalized recipe
                 recommendations.
               </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {cuisineOptions.map((option) => (
                   <label key={option} className="flex items-center">
                     <input
                       type="checkbox"
                       checked={(formData.cuisinePreferences || []).includes(
-                        option,
+                        option
                       )}
                       onChange={() => toggleCuisine(option)}
                       className="h-4 w-4 rounded border-gray-300 text-orange-600"
                     />
-                    <span className="ml-2 text-gray-700 dark:text-gray-300">
+                    <span className="ml-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                       {option}
                     </span>
                   </label>
@@ -329,7 +329,7 @@ export default function Settings() {
             </div>
 
             {saveSuccess && (
-              <div className="rounded-lg bg-green-100 p-4 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+              <div className="rounded-lg bg-green-100 p-3 sm:p-4 text-xs sm:text-sm text-green-800 dark:bg-green-900/20 dark:text-green-400">
                 ✓ Preferences updated successfully!
               </div>
             )}
@@ -337,7 +337,7 @@ export default function Settings() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="rounded-lg bg-orange-500 px-6 py-3 font-medium text-white transition-colors hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700"
+              className="rounded-lg bg-orange-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700"
             >
               {isSaving ? "Saving..." : "Save Preferences"}
             </button>
@@ -346,55 +346,55 @@ export default function Settings() {
 
         {/* Account Tab */}
         {activeTab === "account" && (
-          <div className="space-y-8">
+          <div className="space-y-4 sm:space-y-8">
             {/* Password */}
-            <div className="rounded-lg border border-gray-200 bg-white p-8 dark:border-gray-800 dark:bg-gray-800">
-              <h3 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
+            <div className="rounded-lg border border-gray-200 bg-white p-4 sm:p-8 dark:border-gray-800 dark:bg-gray-800">
+              <h3 className="mb-4 text-base sm:text-xl font-semibold text-gray-900 dark:text-white">
                 Change Password
               </h3>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                     Current Password
                   </label>
                   <input
                     type="password"
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                     New Password
                   </label>
                   <input
                     type="password"
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
                     Confirm Password
                   </label>
                   <input
                     type="password"
-                    className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-2 text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
+                    className="mt-2 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
                   />
                 </div>
-                <button className="rounded-lg bg-orange-500 px-6 py-2 font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700">
+                <button className="rounded-lg bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700">
                   Update Password
                 </button>
               </div>
             </div>
 
             {/* Danger Zone */}
-            <div className="rounded-lg border border-red-300 bg-red-50 p-8 dark:border-red-900/50 dark:bg-red-900/20">
-              <h3 className="mb-2 text-xl font-semibold text-red-900 dark:text-red-400">
+            <div className="rounded-lg border border-red-300 bg-red-50 p-4 sm:p-8 dark:border-red-900/50 dark:bg-red-900/20">
+              <h3 className="mb-2 text-base sm:text-xl font-semibold text-red-900 dark:text-red-400">
                 Danger Zone
               </h3>
-              <p className="mb-4 text-sm text-red-800 dark:text-red-300">
+              <p className="mb-4 text-xs sm:text-sm text-red-800 dark:text-red-300">
                 These actions cannot be undone.
               </p>
-              <button className="rounded-lg bg-red-500 px-6 py-2 font-medium text-white transition-colors hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700">
+              <button className="rounded-lg bg-red-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700">
                 Delete Account
               </button>
             </div>
