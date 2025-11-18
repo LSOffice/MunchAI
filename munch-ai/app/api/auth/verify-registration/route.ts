@@ -4,6 +4,7 @@ import { connectMongo } from "@/lib/mongodb";
 import User from "@/models/User";
 import TempAccount from "@/models/TempAccount";
 import MagicToken from "@/models/MagicToken";
+import { SignJWT } from "jose";
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,6 +21,64 @@ export async function GET(request: NextRequest) {
     }
 
     await connectMongo();
+
+    // Handle polling case - when user is on register page and temp account is deleted
+    if (token === "verified") {
+      // Check if user was already created
+      const user = await User.findOne({ email });
+      if (user) {
+        // User already exists, just generate login token
+        const secret = new TextEncoder().encode(
+          process.env.NEXTAUTH_SECRET || "dev-secret",
+        );
+        const loginToken = await new SignJWT({ uid: String(user._id) })
+          .setProtectedHeader({ alg: "HS256" })
+          .setIssuedAt()
+          .setExpirationTime("7d")
+          .sign(secret);
+
+        return successResponse({
+          message: "Email verified successfully.",
+          verified: true,
+          loginToken,
+        });
+      }
+
+      // If no user yet, check for temp account to create one
+      const tempAccount = await TempAccount.findOne({ email });
+      if (tempAccount) {
+        // Create permanent user account
+        const newUser = await User.create({
+          name: tempAccount.name,
+          email: tempAccount.email,
+          passkeys: [],
+          dietaryRestrictions: [],
+          allergies: [],
+          cuisinePreferences: [],
+        });
+
+        // Generate JWT token for auto-login
+        const secret = new TextEncoder().encode(
+          process.env.NEXTAUTH_SECRET || "dev-secret",
+        );
+        const loginToken = await new SignJWT({ uid: String(newUser._id) })
+          .setProtectedHeader({ alg: "HS256" })
+          .setIssuedAt()
+          .setExpirationTime("7d")
+          .sign(secret);
+
+        // Delete temp account
+        await TempAccount.deleteOne({ _id: tempAccount._id });
+
+        return successResponse({
+          message: "Email verified successfully.",
+          verified: true,
+          loginToken,
+        });
+      }
+
+      throw new APIError(400, "No registration found", "NOT_FOUND");
+    }
 
     // Verify token exists and is not expired
     const magicToken = await MagicToken.findOne({
@@ -43,6 +102,26 @@ export async function GET(request: NextRequest) {
       throw new APIError(400, "Registration not found", "NOT_FOUND");
     }
 
+    // Create permanent user account
+    const user = await User.create({
+      name: tempAccount.name,
+      email: tempAccount.email,
+      passkeys: [],
+      dietaryRestrictions: [],
+      allergies: [],
+      cuisinePreferences: [],
+    });
+
+    // Generate JWT token for auto-login
+    const secret = new TextEncoder().encode(
+      process.env.NEXTAUTH_SECRET || "dev-secret",
+    );
+    const loginToken = await new SignJWT({ uid: String(user._id) })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setExpirationTime("7d")
+      .sign(secret);
+
     // Delete temp account and token
     await Promise.all([
       TempAccount.deleteOne({ _id: tempAccount._id }),
@@ -50,8 +129,9 @@ export async function GET(request: NextRequest) {
     ]);
 
     return successResponse({
-      message: "Email verified successfully. You can now sign in.",
+      message: "Email verified successfully.",
       verified: true,
+      loginToken,
     });
   } catch (error) {
     return errorResponse(error);
