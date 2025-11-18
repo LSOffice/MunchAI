@@ -1,16 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Ingredient } from "../types";
 
 export default function Scanner() {
   const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [uploadMethod, setUploadMethod] = useState<
     "upload" | "camera" | "manual" | null
   >(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
   const [manualForm, setManualForm] = useState({
     name: "",
     quantity: "",
@@ -19,22 +24,83 @@ export default function Scanner() {
     expirationDate: "",
   });
 
-  // Process receipt via API
-  const handleProcessReceipt = async () => {
+  // Start camera stream
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setCameraActive(true);
+      }
+    } catch (error) {
+      console.error("Failed to access camera:", error);
+      alert("Unable to access camera. Please check permissions.");
+    }
+  };
+
+  // Stop camera stream
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach((track) => track.stop());
+      setCameraActive(false);
+    }
+  };
+
+  // Capture photo from camera
+  const capturePhoto = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const context = canvasRef.current.getContext("2d");
+    if (!context) return;
+
+    canvasRef.current.width = videoRef.current.videoWidth;
+    canvasRef.current.height = videoRef.current.videoHeight;
+    context.drawImage(videoRef.current, 0, 0);
+
+    const imageData = canvasRef.current.toDataURL("image/jpeg");
+    await processReceiptImage(imageData);
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const imageData = e.target?.result as string;
+      await processReceiptImage(imageData);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Process receipt image via API
+  const processReceiptImage = async (imageData: string) => {
     setIsProcessing(true);
     try {
+      // TODO: Implement image interpretation on backend
+      // This endpoint should:
+      // 1. Receive base64 encoded receipt image
+      // 2. Use OCR/ML model to extract item names, quantities, prices
+      // 3. Parse ingredients from detected items
+      // 4. Return standardized ingredient list with category suggestions
       const response = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ receipt: "image-data" }),
+        body: JSON.stringify({
+          receipt: imageData,
+          format: "base64",
+        }),
       });
 
       if (!response.ok) throw new Error("Failed to process receipt");
 
       const data = await response.json();
       setIngredients(data.data || []);
+      stopCamera();
     } catch (error) {
       console.error("Failed to process receipt:", error);
+      alert("Failed to process receipt. Please try again.");
     } finally {
       setIsProcessing(false);
     }
@@ -100,8 +166,377 @@ export default function Scanner() {
     });
   };
 
-  if (!uploadMethod) {
+  if (uploadMethod === "upload" || uploadMethod === "camera") {
     return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="mx-auto max-w-2xl px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
+          <button
+            onClick={() =>
+              ingredients.length === 0 ? setUploadMethod(null) : null
+            }
+            className="mb-4 text-xs sm:text-sm text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+          >
+            ← Back
+          </button>
+
+          <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            {uploadMethod === "camera" ? "Take Photo" : "Upload Receipt"}
+          </h1>
+
+          <div className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 sm:p-12 text-center dark:border-gray-700 dark:bg-gray-800">
+            {uploadMethod === "camera" ? (
+              <>
+                {!cameraActive && !isProcessing ? (
+                  <>
+                    <div className="mb-4 text-4xl sm:text-6xl">📷</div>
+                    <p className="mb-4 text-xs sm:text-base text-gray-600 dark:text-gray-400">
+                      Click below to open your camera
+                    </p>
+                    <button
+                      onClick={startCamera}
+                      className="rounded bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                    >
+                      Open Camera
+                    </button>
+                  </>
+                ) : cameraActive && !isProcessing ? (
+                  <>
+                    <div className="relative mb-4 inline-block w-full">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full rounded-lg max-h-96 object-cover"
+                      />
+                      {/* Overlay guides */}
+                      <div className="absolute inset-0 rounded-lg pointer-events-none">
+                        {/* Corner guides */}
+                        <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-orange-400"></div>
+                        <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-orange-400"></div>
+                        <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-orange-400"></div>
+                        <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-orange-400"></div>
+
+                        {/* Center crosshair */}
+                        <div className="absolute inset-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                          <div className="w-12 h-12 border-2 border-orange-400 rounded-full opacity-75"></div>
+                          <div className="absolute top-1/2 left-1/2 w-0.5 h-4 bg-orange-400 transform -translate-x-1/2 -translate-y-1/2"></div>
+                          <div className="absolute top-1/2 left-1/2 w-4 h-0.5 bg-orange-400 transform -translate-x-1/2 -translate-y-1/2"></div>
+                        </div>
+
+                        {/* Focus hint text */}
+                        <div className="absolute top-0 left-0 right-0 pt-4">
+                          <p className="text-xs sm:text-sm font-medium text-orange-300 drop-shadow-lg">
+                            Center the receipt in frame
+                          </p>
+                        </div>
+
+                        {/* Bottom hint */}
+                        <div className="absolute bottom-0 left-0 right-0 pb-4">
+                          <p className="text-xs text-orange-300/80 drop-shadow-lg">
+                            Ensure good lighting and avoid shadows
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+                      <button
+                        onClick={capturePhoto}
+                        className="rounded bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                      >
+                        📸 Take Photo
+                      </button>
+                      <button
+                        onClick={stopCamera}
+                        className="rounded border border-gray-300 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-4 inline-block animate-spin text-3xl sm:text-4xl">
+                      ⏳
+                    </div>
+                    <p className="text-xs sm:text-base text-gray-600 dark:text-gray-400">
+                      Processing receipt with AI...
+                    </p>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                {!isProcessing ? (
+                  <>
+                    <div className="mb-4 text-4xl sm:text-6xl">📁</div>
+                    <p className="mb-4 text-xs sm:text-base text-gray-600 dark:text-gray-400">
+                      Drag and drop a receipt image here, or click to select
+                    </p>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                    >
+                      Choose File
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files?.[0]) {
+                          handleFileUpload(e.target.files[0]);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-4 inline-block animate-spin text-3xl sm:text-4xl">
+                      ⏳
+                    </div>
+                    <p className="text-xs sm:text-base text-gray-600 dark:text-gray-400">
+                      Processing receipt with AI...
+                    </p>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+
+          {ingredients.length > 0 && (
+            <div className="mt-6 sm:mt-8">
+              <h2 className="mb-3 sm:mb-4 text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
+                Detected Ingredients
+              </h2>
+              <div className="space-y-2 sm:space-y-3">
+                {ingredients.map((ingredient, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-800"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-base font-medium text-gray-900 dark:text-white break-words">
+                        {ingredient.quantity} {ingredient.unit}{" "}
+                        {ingredient.name}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {ingredient.category}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setIngredients(ingredients.filter((_, i) => i !== idx))
+                      }
+                      className="ml-2 flex-shrink-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <button
+                  onClick={() => {
+                    setIngredients([]);
+                    if (uploadMethod === "camera") {
+                      startCamera();
+                    }
+                  }}
+                  className="flex-1 rounded border border-gray-300 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-white dark:hover:bg-gray-700"
+                >
+                  Scan Another
+                </button>
+                <button
+                  onClick={handleAddIngredients}
+                  className="flex-1 rounded bg-orange-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                >
+                  Add to Inventory
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (uploadMethod === "manual") {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="mx-auto max-w-2xl px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
+          <button
+            onClick={() => setUploadMethod(null)}
+            className="mb-4 text-xs sm:text-sm text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+          >
+            ← Back
+          </button>
+
+          <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            Add Items Manually
+          </h1>
+          <p className="mb-4 sm:mb-6 text-xs sm:text-base text-gray-600 dark:text-gray-400">
+            Type in what you bought, and we'll add it to your inventory.
+          </p>
+
+          <div className="space-y-3 sm:space-y-4 rounded-lg border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-gray-800">
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                Item Name
+              </label>
+              <input
+                type="text"
+                placeholder="e.g., Tomatoes"
+                value={manualForm.name}
+                onChange={(e) =>
+                  setManualForm({ ...manualForm, name: e.target.value })
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 placeholder-gray-500 dark:border-gray-700 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                  Quantity
+                </label>
+                <input
+                  type="number"
+                  placeholder="4"
+                  value={manualForm.quantity}
+                  onChange={(e) =>
+                    setManualForm({ ...manualForm, quantity: e.target.value })
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 placeholder-gray-500 dark:border-gray-700 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                  Unit
+                </label>
+                <select
+                  value={manualForm.unit}
+                  onChange={(e) =>
+                    setManualForm({ ...manualForm, unit: e.target.value })
+                  }
+                  className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
+                >
+                  <option>piece</option>
+                  <option>g</option>
+                  <option>ml</option>
+                  <option>cup</option>
+                  <option>liter</option>
+                  <option>bunch</option>
+                  <option>bottle</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                Category
+              </label>
+              <select
+                value={manualForm.category}
+                onChange={(e) =>
+                  setManualForm({ ...manualForm, category: e.target.value })
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
+              >
+                <option>produce</option>
+                <option>dairy</option>
+                <option>meat</option>
+                <option>pantry</option>
+                <option>frozen</option>
+                <option>other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                Expiration Date
+              </label>
+              <input
+                type="date"
+                value={manualForm.expirationDate}
+                onChange={(e) =>
+                  setManualForm({
+                    ...manualForm,
+                    expirationDate: e.target.value,
+                  })
+                }
+                className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+
+            <button
+              onClick={handleAddManual}
+              className="w-full rounded bg-orange-500 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+            >
+              Add Item
+            </button>
+
+            {ingredients.length > 0 && (
+              <div className="mt-4 sm:mt-6 border-t border-gray-300 pt-4 dark:border-gray-700">
+                <h3 className="mb-3 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                  Items to Add ({ingredients.length})
+                </h3>
+                <div className="space-y-2">
+                  {ingredients.map((ing, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400"
+                    >
+                      <span className="break-words">
+                        {ing.quantity} {ing.unit} {ing.name}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setIngredients(
+                            ingredients.filter((_, i) => i !== idx)
+                          )
+                        }
+                        className="ml-2 flex-shrink-0 text-red-500 hover:text-red-700"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <button
+              onClick={() => {
+                setUploadMethod(null);
+                setIngredients([]);
+              }}
+              className="flex-1 rounded border border-gray-300 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-white dark:hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddIngredients}
+              disabled={ingredients.length === 0}
+              className="flex-1 rounded bg-orange-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700"
+            >
+              Save Items
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Hidden canvas for capturing photos */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Main content */}
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="mx-auto max-w-2xl px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
           <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
@@ -154,274 +589,6 @@ export default function Scanner() {
           </div>
         </div>
       </div>
-    );
-  }
-
-  if (uploadMethod === "upload" || uploadMethod === "camera") {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="mx-auto max-w-2xl px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
-          <button
-            onClick={() =>
-              ingredients.length === 0 ? setUploadMethod(null) : null
-            }
-            className="mb-4 text-xs sm:text-sm text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
-          >
-            ← Back
-          </button>
-
-          <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-            {uploadMethod === "camera" ? "Take Photo" : "Upload Receipt"}
-          </h1>
-
-          <div className="rounded-lg border-2 border-dashed border-gray-300 bg-white p-6 sm:p-12 text-center dark:border-gray-700 dark:bg-gray-800">
-            {!isProcessing ? (
-              <>
-                <div className="mb-4 text-4xl sm:text-6xl">
-                  {uploadMethod === "camera" ? "📷" : "📁"}
-                </div>
-                <p className="mb-4 text-xs sm:text-base text-gray-600 dark:text-gray-400">
-                  {uploadMethod === "camera"
-                    ? "Click to open camera"
-                    : "Drag and drop a receipt image here, or click to select"}
-                </p>
-                <button
-                  onClick={handleProcessReceipt}
-                  className="rounded bg-orange-500 px-4 sm:px-6 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
-                >
-                  {uploadMethod === "camera" ? "Open Camera" : "Choose File"}
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="mb-4 inline-block animate-spin text-3xl sm:text-4xl">
-                  ⏳
-                </div>
-                <p className="text-xs sm:text-base text-gray-600 dark:text-gray-400">
-                  Processing receipt with AI...
-                </p>
-              </>
-            )}
-          </div>
-
-          {ingredients.length > 0 && (
-            <div className="mt-6 sm:mt-8">
-              <h2 className="mb-3 sm:mb-4 text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
-                Detected Ingredients
-              </h2>
-              <div className="space-y-2 sm:space-y-3">
-                {ingredients.map((ingredient, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-3 sm:p-4 dark:border-gray-800 dark:bg-gray-800"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs sm:text-base font-medium text-gray-900 dark:text-white break-words">
-                        {ingredient.quantity} {ingredient.unit}{" "}
-                        {ingredient.name}
-                      </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        {ingredient.category}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setIngredients(ingredients.filter((_, i) => i !== idx))
-                      }
-                      className="ml-2 flex-shrink-0 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-2 sm:gap-3">
-                <button
-                  onClick={() => {
-                    setIngredients([]);
-                    handleProcessReceipt();
-                  }}
-                  className="flex-1 rounded border border-gray-300 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-white dark:hover:bg-gray-700"
-                >
-                  Scan Another
-                </button>
-                <button
-                  onClick={handleAddIngredients}
-                  className="flex-1 rounded bg-orange-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
-                >
-                  Add to Inventory
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="mx-auto max-w-2xl px-3 py-6 sm:px-4 sm:py-8 lg:px-8">
-        <button
-          onClick={() => setUploadMethod(null)}
-          className="mb-4 text-xs sm:text-sm text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
-        >
-          ← Back
-        </button>
-
-        <h1 className="mb-2 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-          Add Items Manually
-        </h1>
-        <p className="mb-4 sm:mb-6 text-xs sm:text-base text-gray-600 dark:text-gray-400">
-          Type in what you bought, and we'll add it to your inventory.
-        </p>
-
-        <div className="space-y-3 sm:space-y-4 rounded-lg border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-gray-800">
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-              Item Name
-            </label>
-            <input
-              type="text"
-              placeholder="e.g., Tomatoes"
-              value={manualForm.name}
-              onChange={(e) =>
-                setManualForm({ ...manualForm, name: e.target.value })
-              }
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 placeholder-gray-500 dark:border-gray-700 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:gap-4">
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                Quantity
-              </label>
-              <input
-                type="number"
-                placeholder="4"
-                value={manualForm.quantity}
-                onChange={(e) =>
-                  setManualForm({ ...manualForm, quantity: e.target.value })
-                }
-                className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 placeholder-gray-500 dark:border-gray-700 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                Unit
-              </label>
-              <select
-                value={manualForm.unit}
-                onChange={(e) =>
-                  setManualForm({ ...manualForm, unit: e.target.value })
-                }
-                className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
-              >
-                <option>piece</option>
-                <option>g</option>
-                <option>ml</option>
-                <option>cup</option>
-                <option>liter</option>
-                <option>bunch</option>
-                <option>bottle</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-              Category
-            </label>
-            <select
-              value={manualForm.category}
-              onChange={(e) =>
-                setManualForm({ ...manualForm, category: e.target.value })
-              }
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
-            >
-              <option>produce</option>
-              <option>dairy</option>
-              <option>meat</option>
-              <option>pantry</option>
-              <option>frozen</option>
-              <option>other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-              Expiration Date
-            </label>
-            <input
-              type="date"
-              value={manualForm.expirationDate}
-              onChange={(e) =>
-                setManualForm({
-                  ...manualForm,
-                  expirationDate: e.target.value,
-                })
-              }
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-gray-50 px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-700 dark:text-white"
-            />
-          </div>
-
-          <button
-            onClick={handleAddManual}
-            className="w-full rounded bg-orange-500 py-2 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
-          >
-            Add Item
-          </button>
-
-          {ingredients.length > 0 && (
-            <div className="mt-4 sm:mt-6 border-t border-gray-300 pt-4 dark:border-gray-700">
-              <h3 className="mb-3 text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                Items to Add ({ingredients.length})
-              </h3>
-              <div className="space-y-2">
-                {ingredients.map((ing, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400"
-                  >
-                    <span className="break-words">
-                      {ing.quantity} {ing.unit} {ing.name}
-                    </span>
-                    <button
-                      onClick={() =>
-                        setIngredients(ingredients.filter((_, i) => i !== idx))
-                      }
-                      className="ml-2 flex-shrink-0 text-red-500 hover:text-red-700"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <button
-            onClick={() => {
-              setUploadMethod(null);
-              setIngredients([]);
-            }}
-            className="flex-1 rounded border border-gray-300 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:text-white dark:hover:bg-gray-700"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleAddIngredients}
-            disabled={ingredients.length === 0}
-            className="flex-1 rounded bg-orange-500 px-4 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 disabled:opacity-50 dark:bg-orange-600 dark:hover:bg-orange-700"
-          >
-            Save Items
-          </button>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
