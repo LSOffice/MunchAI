@@ -5,53 +5,6 @@ import RecipeCard from "../components/RecipeCard";
 import { Recipe, Ingredient } from "../types";
 
 // Updated mock featured recipes to match the Recipe interface
-const mockFeaturedRecipes: Recipe[] = [
-  {
-    id: "1",
-    title: "Spaghetti Bolognese",
-    description: "A classic Italian pasta dish with rich meat sauce.",
-    servings: 4,
-    prepTime: 15,
-    cookTime: 30,
-    difficulty: "medium",
-    ingredients: [],
-    instructions: [],
-    tags: ["italian", "pasta"],
-    imageUrl: "/images/spaghetti.jpg",
-    source: "verified",
-    saved: false,
-  },
-  {
-    id: "2",
-    title: "Vegan Buddha Bowl",
-    description: "A healthy and colorful bowl of veggies and grains.",
-    servings: 2,
-    prepTime: 10,
-    cookTime: 0,
-    difficulty: "easy",
-    ingredients: [],
-    instructions: [],
-    tags: ["vegan", "healthy"],
-    imageUrl: "/images/buddha-bowl.jpg",
-    source: "verified",
-    saved: false,
-  },
-  {
-    id: "3",
-    title: "Chicken Curry",
-    description: "A flavorful curry with tender chicken pieces.",
-    servings: 4,
-    prepTime: 20,
-    cookTime: 40,
-    difficulty: "medium",
-    ingredients: [],
-    instructions: [],
-    tags: ["indian", "spicy"],
-    imageUrl: "/images/chicken-curry.jpg",
-    source: "verified",
-    saved: false,
-  },
-];
 
 export default function RecipeSearch() {
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
@@ -72,7 +25,7 @@ export default function RecipeSearch() {
       unit: "piece",
       category: "produce",
       expirationDate: new Date(
-        Date.now() + 5 * 24 * 60 * 60 * 1000
+        Date.now() + 5 * 24 * 60 * 60 * 1000,
       ).toISOString(),
       dateAdded: new Date().toISOString(),
     },
@@ -83,7 +36,7 @@ export default function RecipeSearch() {
       unit: "bunch",
       category: "produce",
       expirationDate: new Date(
-        Date.now() + 2 * 24 * 60 * 60 * 1000
+        Date.now() + 2 * 24 * 60 * 60 * 1000,
       ).toISOString(),
       dateAdded: new Date().toISOString(),
     },
@@ -94,7 +47,7 @@ export default function RecipeSearch() {
       unit: "liter",
       category: "dairy",
       expirationDate: new Date(
-        Date.now() + 7 * 24 * 60 * 60 * 1000
+        Date.now() + 7 * 24 * 60 * 60 * 1000,
       ).toISOString(),
       dateAdded: new Date().toISOString(),
     },
@@ -105,7 +58,7 @@ export default function RecipeSearch() {
       unit: "g",
       category: "meat",
       expirationDate: new Date(
-        Date.now() + 1 * 24 * 60 * 60 * 1000
+        Date.now() + 1 * 24 * 60 * 60 * 1000,
       ).toISOString(),
       dateAdded: new Date().toISOString(),
     },
@@ -116,7 +69,7 @@ export default function RecipeSearch() {
       unit: "ml",
       category: "pantry",
       expirationDate: new Date(
-        Date.now() + 365 * 24 * 60 * 60 * 1000
+        Date.now() + 365 * 24 * 60 * 60 * 1000,
       ).toISOString(),
       dateAdded: new Date().toISOString(),
     },
@@ -127,7 +80,7 @@ export default function RecipeSearch() {
       unit: "g",
       category: "pantry",
       expirationDate: new Date(
-        Date.now() + 200 * 24 * 60 * 60 * 1000
+        Date.now() + 200 * 24 * 60 * 60 * 1000,
       ).toISOString(),
       dateAdded: new Date().toISOString(),
     },
@@ -138,7 +91,7 @@ export default function RecipeSearch() {
       unit: "g",
       category: "dairy",
       expirationDate: new Date(
-        Date.now() + 10 * 24 * 60 * 60 * 1000
+        Date.now() + 10 * 24 * 60 * 60 * 1000,
       ).toISOString(),
       dateAdded: new Date().toISOString(),
     },
@@ -153,8 +106,20 @@ export default function RecipeSearch() {
   ];
 
   useEffect(() => {
-    // Simulate fetching featured recipes
-    setFeaturedRecipes(mockFeaturedRecipes);
+    // Fetch featured recipes from the API
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/recipes/featured");
+        const data = await res.json();
+        if (mounted) setFeaturedRecipes(data.data || []);
+      } catch (e) {
+        console.error("Failed to load featured recipes:", e);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleSearch = async () => {
@@ -185,7 +150,7 @@ export default function RecipeSearch() {
     setSelectedIngredients((prev) =>
       prev.includes(ingredientName)
         ? prev.filter((i) => i !== ingredientName)
-        : [...prev, ingredientName]
+        : [...prev, ingredientName],
     );
   };
 
@@ -193,7 +158,7 @@ export default function RecipeSearch() {
     setDietaryFilters((prev) =>
       prev.includes(option)
         ? prev.filter((o) => o !== option)
-        : [...prev, option]
+        : [...prev, option],
     );
   };
 
@@ -212,8 +177,8 @@ export default function RecipeSearch() {
       // Optionally, update the local state to reflect the saved recipe
       setRecipes((prev) =>
         prev.map((recipe) =>
-          recipe.id === recipeId ? { ...recipe, saved: true } : recipe
-        )
+          recipe.id === recipeId ? { ...recipe, saved: true } : recipe,
+        ),
       );
     } catch (error) {
       console.error("Error saving recipe:", error);

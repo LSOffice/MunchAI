@@ -8,81 +8,6 @@ import {
 import { db } from "@/lib/db";
 import { Recipe } from "@/app/types";
 
-const mockRecipes: Recipe[] = [
-  {
-    id: "1",
-    title: "Tomato Basil Pasta",
-    description: "Fresh pasta with tomatoes, garlic, and basil",
-    servings: 2,
-    prepTime: 10,
-    cookTime: 20,
-    difficulty: "easy",
-    ingredients: [
-      { name: "Pasta", quantity: 200, unit: "g" },
-      { name: "Tomatoes", quantity: 3, unit: "piece" },
-    ],
-    instructions: [
-      "Cook pasta according to package directions",
-      "Sauté tomatoes with garlic",
-      "Mix pasta with tomatoes",
-      "Serve with fresh basil",
-    ],
-    tags: ["Italian", "pasta", "vegetarian"],
-    nutrition: { calories: 450, protein: 15, carbs: 65, fat: 8 },
-    source: "verified",
-    rating: 4.8,
-    saved: false,
-  },
-  {
-    id: "2",
-    title: "Spinach and Cheese Pasta",
-    description: "Creamy spinach pasta with melted cheese",
-    servings: 2,
-    prepTime: 5,
-    cookTime: 15,
-    difficulty: "easy",
-    ingredients: [
-      { name: "Pasta", quantity: 200, unit: "g" },
-      { name: "Spinach", quantity: 200, unit: "g" },
-      { name: "Cheese", quantity: 100, unit: "g" },
-    ],
-    instructions: [
-      "Cook pasta",
-      "Sauté spinach",
-      "Mix pasta with spinach and melted cheese",
-      "Season to taste",
-    ],
-    tags: ["Italian", "pasta", "vegetarian"],
-    nutrition: { calories: 520, protein: 20, carbs: 65, fat: 15 },
-    source: "ai-generated",
-    rating: 4.5,
-    saved: false,
-  },
-  {
-    id: "3",
-    title: "Grilled Chicken with Tomato Salad",
-    description: "Protein-packed meal with fresh vegetables",
-    servings: 1,
-    prepTime: 15,
-    cookTime: 20,
-    difficulty: "medium",
-    ingredients: [
-      { name: "Chicken Breast", quantity: 200, unit: "g" },
-      { name: "Tomatoes", quantity: 2, unit: "piece" },
-    ],
-    instructions: [
-      "Season and grill chicken",
-      "Prepare tomato salad",
-      "Plate together",
-    ],
-    tags: ["healthy", "protein", "gluten-free"],
-    nutrition: { calories: 380, protein: 35, carbs: 15, fat: 12 },
-    source: "verified",
-    rating: 4.7,
-    saved: false,
-  },
-];
-
 export async function GET(request: NextRequest) {
   try {
     validateRequest("GET", ["GET", "POST"]);
@@ -97,7 +22,7 @@ export async function GET(request: NextRequest) {
         .filter((t) => t) || [];
     const source = searchParams.get("source");
 
-    let results: Recipe[] = mockRecipes;
+    let results: Recipe[] = db?.recipes?.getAll ? db.recipes.getAll() : [];
 
     // Filter by search query
     if (q) {

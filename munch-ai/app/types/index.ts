@@ -29,6 +29,7 @@ export interface Recipe {
     fat: number;
   };
   imageUrl?: string;
+  featured?: boolean;
   source: "ai-generated" | "verified";
   rating?: number; // 0-5
   userRating?: number; // current user's rating
