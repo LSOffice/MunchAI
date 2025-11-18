@@ -1,0 +1,2 @@
+# MunchAI
+Recipe AI App
