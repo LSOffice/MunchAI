@@ -86,12 +86,21 @@ export default function RegisterPage() {
             });
 
             console.log("Sign in result:", signInResult);
+            console.log("Sign in ok:", signInResult?.ok);
+            console.log("Sign in error:", signInResult?.error);
+            console.log("Sign in status:", signInResult?.status);
             if (signInResult?.ok) {
+              // Wait a moment for session to be established
+              console.log("Waiting for session to be established...");
+              await new Promise((resolve) => setTimeout(resolve, 2000));
               // Redirect to onboarding
               console.log("Redirecting to onboarding...");
               router.push("/onboarding");
             } else {
-              setError("Failed to sign in automatically");
+              console.error("Sign in failed:", signInResult);
+              setError(
+                "Failed to sign in automatically. Please try logging in manually.",
+              );
               setStep("verify");
             }
           } else {

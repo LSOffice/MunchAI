@@ -28,19 +28,23 @@ export async function POST(req: NextRequest) {
       );
 
     await connectMongo();
-    const user = await User.findOne({ email });
+    const user = (await User.findOne({ email })) as any;
     if (!user || !user.currentChallenge)
       throw new APIError(400, "No pending challenge", "NO_CHALLENGE");
 
     const { origin, rpID } = getOriginAndRpID(req.headers.get("origin"));
 
-    const verification = await verifyRegistrationResponse({
+    const verification = (await verifyRegistrationResponse({
       response: credential,
       expectedChallenge: user.currentChallenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
       requireUserVerification: true,
-    }).catch((e) => ({ verified: false, error: e }));
+    } as any).catch((e: any) => ({
+      verified: false,
+      error: e,
+      registrationInfo: null,
+    }))) as any;
 
     if (!verification.verified || !verification.registrationInfo) {
       throw new APIError(
@@ -51,10 +55,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { credentialPublicKey, credentialID, counter } =
-      verification.registrationInfo;
+      verification.registrationInfo as any;
 
     user.passkeys = user.passkeys || [];
-    const exists = user.passkeys.find((pk) =>
+    const exists = user.passkeys.find((pk: any) =>
       pk.credentialID.equals(Buffer.from(credentialID)),
     );
     if (!exists) {

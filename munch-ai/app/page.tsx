@@ -1,13 +1,8 @@
-import { getServerSession } from "next-auth/next";
-import { redirect } from "next/navigation";
 import HomeClient from "./components/HomeClient";
 
-export default async function Home() {
-  const session = await getServerSession();
-
-  if (session) {
-    redirect("/dashboard");
-  }
-
+export default function Home() {
+  // Always show the homepage - let the client decide what to do
+  // The navbar will show login/signup for unauthenticated users
+  // and authenticated users can navigate to dashboard from there
   return <HomeClient />;
 }

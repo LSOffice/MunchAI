@@ -15,7 +15,7 @@ function rpFromRequest(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
+    const session = (await auth()) as any;
     if (!session?.user?.id)
       throw new APIError(401, "Unauthorized", "UNAUTHORIZED");
     await connectMongo();
@@ -26,11 +26,11 @@ export async function POST(req: NextRequest) {
     const opts = await generateRegistrationOptions({
       rpName: process.env.WEBAUTHN_RP_NAME || "MunchAI",
       rpID,
-      userID: String(user._id),
+      userID: new Uint8Array(Buffer.from(String(user._id))),
       userName: user.email,
       userDisplayName: user.name || user.email,
       attestationType: "none",
-      excludeCredentials: (user.passkeys || []).map((pk) => ({
+      excludeCredentials: (user.passkeys || []).map((pk: any) => ({
         id: new Uint8Array(pk.credentialID),
         type: "public-key" as const,
         transports: pk.transports as any,

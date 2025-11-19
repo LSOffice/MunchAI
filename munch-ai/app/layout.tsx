@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NavbarWrapper from "@/app/components/NavbarWrapper";
+import AuthProvider from "@/app/AuthProvider";
 import { getServerSession } from "next-auth/next";
 
 const geistSans = Geist({
@@ -32,8 +33,10 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <NavbarWrapper session={!!session} />
-        {children}
+        <AuthProvider>
+          <NavbarWrapper session={!!session} />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

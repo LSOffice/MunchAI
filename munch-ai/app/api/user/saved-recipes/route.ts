@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       throw new APIError(400, "Recipe ID is required", "INVALID_REQUEST");
     }
     await connectMongo();
-    const recipe = await RecipeModel.findById(body.id).lean();
+    const recipe = (await RecipeModel.findById(body.id).lean()) as any;
     if (!recipe) {
       throw new APIError(404, "Recipe not found", "NOT_FOUND");
     }

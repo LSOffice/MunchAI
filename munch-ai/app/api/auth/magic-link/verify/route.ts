@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectMongo } from "@/lib/mongodb";
-import MagicToken from "@/models/MagicToken";
+import MagicToken, { IMagicToken } from "@/models/MagicToken";
 import User from "@/models/User";
 import TempAccount from "@/models/TempAccount";
 import { errorResponse } from "@/lib/utils";
@@ -16,7 +16,9 @@ export async function GET(req: NextRequest) {
         new URL("/login?error=invalid_token", req.url),
       );
 
-    const record = await MagicToken.findOne({ token }).lean();
+    const record = (await MagicToken.findOne({
+      token,
+    }).lean()) as IMagicToken | null;
     if (!record)
       return NextResponse.redirect(
         new URL("/login?error=invalid_token", req.url),

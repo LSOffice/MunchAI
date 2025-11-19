@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     await connectMongo();
-    const user = await User.findOne({ email }).lean();
+    const user = (await User.findOne({ email }).lean()) as any;
 
     if (!user) {
       throw new APIError(

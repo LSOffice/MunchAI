@@ -5,6 +5,7 @@ import User from "@/models/User";
 import TempAccount from "@/models/TempAccount";
 import MagicToken from "@/models/MagicToken";
 import { SignJWT } from "jose";
+import { getAuthSecret } from "@/lib/secrets";
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,9 +29,7 @@ export async function GET(request: NextRequest) {
       const user = await User.findOne({ email });
       if (user) {
         // User already exists, just generate login token
-        const secret = new TextEncoder().encode(
-          process.env.NEXTAUTH_SECRET || "dev-secret",
-        );
+        const secret = new TextEncoder().encode(getAuthSecret());
         const loginToken = await new SignJWT({ uid: String(user._id) })
           .setProtectedHeader({ alg: "HS256" })
           .setIssuedAt()
@@ -58,9 +57,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Generate JWT token for auto-login
-        const secret = new TextEncoder().encode(
-          process.env.NEXTAUTH_SECRET || "dev-secret",
-        );
+        const secret = new TextEncoder().encode(getAuthSecret());
         const loginToken = await new SignJWT({ uid: String(newUser._id) })
           .setProtectedHeader({ alg: "HS256" })
           .setIssuedAt()
@@ -113,9 +110,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Generate JWT token for auto-login
-    const secret = new TextEncoder().encode(
-      process.env.NEXTAUTH_SECRET || "dev-secret",
-    );
+    const secret = new TextEncoder().encode(getAuthSecret());
     const loginToken = await new SignJWT({ uid: String(user._id) })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()

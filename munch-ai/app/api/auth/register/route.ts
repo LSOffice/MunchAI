@@ -76,12 +76,12 @@ export async function POST(request: NextRequest) {
       expiresAt,
     });
 
-    // Build verification link
+    // Build verification link to verification page instead of API
     const origin =
       request.headers.get("origin") ||
       process.env.NEXTAUTH_URL ||
       "http://localhost:3000";
-    const link = `${origin}/api/auth/verify-registration?token=${token}&email=${encodeURIComponent(email)}`;
+    const link = `${origin}/verify?token=${token}&email=${encodeURIComponent(email)}`;
     await sendMagicLinkEmail(email, link);
 
     return successResponse(

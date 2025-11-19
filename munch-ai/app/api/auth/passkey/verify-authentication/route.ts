@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       );
 
     await connectMongo();
-    const user = await User.findOne({ email });
+    const user = (await User.findOne({ email })) as any;
     if (!user || !user.currentChallenge)
       throw new APIError(400, "No pending challenge", "NO_CHALLENGE");
     if (!user.passkeys || user.passkeys.length === 0)
@@ -36,23 +36,30 @@ export async function POST(req: NextRequest) {
 
     const { origin, rpID } = getOriginAndRpID(req.headers.get("origin"));
 
+    // Find the matching passkey
+    const matchingPasskey = user.passkeys
+      .map((pk: any) => ({
+        credentialID: pk.credentialID,
+        credentialPublicKey: pk.publicKey,
+        counter: pk.counter,
+        transports: pk.transports,
+      }))
+      .find(
+        (a: any) => a.credentialID.toString("base64url") === credential.rawId,
+      );
+
     const verification = await verifyAuthenticationResponse({
       response: credential,
       expectedChallenge: user.currentChallenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
       requireUserVerification: true,
-      authenticator: user.passkeys
-        .map((pk) => ({
-          credentialID: pk.credentialID,
-          credentialPublicKey: pk.publicKey,
-          counter: pk.counter,
-          transports: pk.transports,
-        }))
-        .find(
-          (a) => a.credentialID.toString("base64url") === credential.rawId,
-        ) as any,
-    }).catch((e) => ({ verified: false, error: e }));
+      authenticator: matchingPasskey as any,
+    } as any).catch((e: any) => ({
+      verified: false,
+      error: e,
+      authenticationInfo: null,
+    }));
 
     if (!verification.verified || !verification.authenticationInfo) {
       throw new APIError(400, "Authentication failed", "VERIFY_FAILED");
@@ -60,7 +67,7 @@ export async function POST(req: NextRequest) {
 
     const { newCounter, credentialID } = verification.authenticationInfo;
     // Update counter
-    const pk = user.passkeys.find((p) =>
+    const pk = user.passkeys.find((p: any) =>
       p.credentialID.equals(Buffer.from(credentialID)),
     );
     if (pk) pk.counter = newCounter;

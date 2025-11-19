@@ -82,7 +82,13 @@ export default function OnboardingPage() {
 
       // Show loading animation for 3 seconds, then redirect
       setSetupComplete(true);
+
+      // Wait for loading animation and let session update
       await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Small delay to ensure session is synced
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -90,7 +96,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const canProceedToStep2 = dietary.length > 0;
+  const canProceedToStep2 = true; // Dietary restrictions are optional
   const canProceedToStep3 = true; // Allergies are optional
   const canSubmit = cuisines.length > 0;
 
@@ -269,7 +275,7 @@ export default function OnboardingPage() {
                     Dietary Restrictions
                   </h2>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Select any dietary preferences that apply to you
+                    Select any dietary preferences that apply to you (optional)
                   </p>
                 </div>
 
@@ -301,12 +307,6 @@ export default function OnboardingPage() {
                     </button>
                   ))}
                 </div>
-
-                {!canProceedToStep2 && (
-                  <p className="text-sm text-orange-600 dark:text-orange-400">
-                    Please select at least one dietary preference
-                  </p>
-                )}
               </div>
             )}
 

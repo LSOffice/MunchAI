@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       throw new APIError(401, "Unauthorized", "UNAUTHORIZED");
     }
     await connectMongo();
-    const user = await User.findById(userId).lean();
+    const user = (await User.findById(userId).lean()) as any;
     if (!user) {
       throw new APIError(404, "User not found", "NOT_FOUND");
     }
@@ -47,7 +47,7 @@ export async function PATCH(request: NextRequest) {
     }
     const body = await request.json();
     await connectMongo();
-    const updated = await User.findByIdAndUpdate(
+    const updated = (await User.findByIdAndUpdate(
       userId,
       {
         ...(body.name ? { name: body.name } : {}),
@@ -60,7 +60,7 @@ export async function PATCH(request: NextRequest) {
           : {}),
       },
       { new: true },
-    ).lean();
+    ).lean()) as any;
     if (!updated) {
       throw new APIError(404, "User not found", "NOT_FOUND");
     }

@@ -18,7 +18,7 @@ export async function GET(
     validateRequest("GET", ["GET", "PATCH", "DELETE"]);
     const { id } = await params;
     await connectMongo();
-    const doc = await RecipeModel.findById(id).lean();
+    const doc = (await RecipeModel.findById(id).lean()) as any;
     if (!doc) {
       throw new APIError(404, "Recipe not found", "NOT_FOUND");
     }
@@ -60,9 +60,9 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     await connectMongo();
-    const updated = await RecipeModel.findByIdAndUpdate(id, body, {
+    const updated = (await RecipeModel.findByIdAndUpdate(id, body, {
       new: true,
-    }).lean();
+    }).lean()) as any;
     if (!updated) throw new APIError(404, "Recipe not found", "NOT_FOUND");
     return successResponse({
       id: String(updated._id),

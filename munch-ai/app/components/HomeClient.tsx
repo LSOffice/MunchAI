@@ -50,13 +50,13 @@ export default function HomeClient() {
 
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
             <button
-              onClick={() => router.push("/api/auth/signin")}
+              onClick={() => router.push("/login")}
               className="w-full rounded-lg bg-orange-500 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 dark:bg-orange-600 dark:hover:bg-orange-700 dark:focus:ring-orange-500 sm:w-auto"
             >
               Log in
             </button>
             <button
-              onClick={() => router.push("/api/auth/signup")}
+              onClick={() => router.push("/register")}
               className="w-full rounded-lg border border-gray-300 bg-white px-6 py-3 text-sm font-semibold text-gray-900 transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 sm:w-auto"
             >
               Sign up
@@ -363,7 +363,7 @@ export default function HomeClient() {
             eating better with MunchAI.
           </p>
           <button
-            onClick={() => router.push("/api/auth/signup")}
+            onClick={() => router.push("/register")}
             className="rounded-lg bg-orange-500 px-8 py-4 text-base font-semibold text-white shadow-lg transition hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-2 dark:bg-orange-600 dark:hover:bg-orange-700"
           >
             Get Started Free

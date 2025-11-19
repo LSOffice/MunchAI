@@ -30,9 +30,9 @@ export async function POST(req: NextRequest) {
 
     const { rpID } = getOriginAndRpID(req);
 
-    const options = generateAuthenticationOptions({
+    const options = await generateAuthenticationOptions({
       timeout: 60000,
-      allowCredentials: user.passkeys.map((pk) => ({
+      allowCredentials: user.passkeys.map((pk: any) => ({
         id: pk.credentialID,
         type: "public-key",
         transports: pk.transports,

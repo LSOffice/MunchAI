@@ -101,14 +101,14 @@ export default function LandingNavbar() {
                 Testimonials
               </Link>
               <Link
-                href="/api/auth/signin"
+                href="/api/auth/login"
                 onClick={() => setIsMenuOpen(false)}
                 className="block rounded-md px-3 py-2 text-base font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
               >
                 Log in
               </Link>
               <Link
-                href="/api/auth/signup"
+                href="/api/auth/register"
                 onClick={() => setIsMenuOpen(false)}
                 className="block rounded-lg bg-orange-500 px-3 py-2 text-base font-semibold text-white transition hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
               >

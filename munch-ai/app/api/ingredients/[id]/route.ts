@@ -22,7 +22,10 @@ export async function GET(
     }
     const { id } = await params;
     await connectMongo();
-    const doc = await IngredientModel.findOne({ _id: id, userId }).lean();
+    const doc = (await IngredientModel.findOne({
+      _id: id,
+      userId,
+    }).lean()) as any;
     if (!doc) {
       throw new APIError(404, "Ingredient not found", "NOT_FOUND");
     }
@@ -56,11 +59,11 @@ export async function PATCH(
     const body = await request.json();
 
     await connectMongo();
-    const updated = await IngredientModel.findOneAndUpdate(
+    const updated = (await IngredientModel.findOneAndUpdate(
       { _id: id, userId },
       body,
       { new: true },
-    ).lean();
+    ).lean()) as any;
     if (!updated) {
       throw new APIError(404, "Ingredient not found", "NOT_FOUND");
     }
