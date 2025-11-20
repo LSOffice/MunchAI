@@ -4,8 +4,10 @@ import { getServerSession } from "next-auth/next";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { connectMongo } from "@/lib/mongodb";
 import User from "@/models/User";
+import MagicToken from "@/models/MagicToken";
 import { jwtVerify } from "jose";
 import { getAuthSecret } from "@/lib/secrets";
+import { cookies } from "next/headers";
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -38,37 +40,87 @@ export const authOptions: NextAuthOptions = {
         loginToken: { label: "loginToken", type: "text" },
       },
       async authorize(credentials) {
-        const loginToken = credentials?.loginToken as string | undefined;
+        // Try to get loginToken from credentials first, then fallback to cookie
+        let loginToken = credentials?.loginToken as string | undefined;
+        if (!loginToken) {
+          const cookieStore = await cookies();
+          loginToken = cookieStore.get("loginToken")?.value;
+        }
         if (!loginToken) {
           console.log("[Auth] No login token provided");
           return null;
         }
+
+        await connectMongo();
+
+        // 1. Try as JWT (legacy/cookie flow or passkey flow if used)
         try {
           const secret = new TextEncoder().encode(getAuthSecret());
-          const { payload } = await jwtVerify(loginToken, secret).catch(
-            () => ({ payload: null }) as any,
-          );
+          const { payload } = await jwtVerify(loginToken, secret);
           const uid = (payload?.uid as string) || null;
-          if (!uid) {
-            console.log("[Auth] No uid in payload");
-            return null;
+          if (uid) {
+            const user = (await User.findById(uid).lean()) as any;
+            if (user) {
+              console.log(
+                "[Auth] Successfully authorized user via JWT:",
+                user.email,
+              );
+              return {
+                id: String(user._id),
+                email: user.email,
+                name: user.name,
+              } as any;
+            }
           }
-          await connectMongo();
-          const user = (await User.findById(uid).lean()) as any;
-          if (!user) {
-            console.log("[Auth] User not found for uid:", uid);
-            return null;
-          }
-          console.log("[Auth] Successfully authorized user:", user.email);
-          return {
-            id: String(user._id),
-            email: user.email,
-            name: user.name,
-          } as any;
         } catch (err) {
-          console.error("[Auth] Authorization error:", err);
-          return null;
+          // Not a valid JWT, proceed to check as MagicToken
         }
+
+        // 2. Try as MagicToken (polling flow)
+        try {
+          const magicToken = await MagicToken.findOne({ token: loginToken });
+          if (magicToken) {
+            // Check if expired
+            if (new Date() > magicToken.expiresAt) {
+              console.log("[Auth] Magic token expired");
+              return null;
+            }
+            // Check if used (it MUST be used for the polling flow to work)
+            // We allow login within 5 minutes of verification
+            if (!magicToken.usedAt) {
+              console.log("[Auth] Magic token not verified yet");
+              return null;
+            }
+            const timeSinceUsed =
+              new Date().getTime() - new Date(magicToken.usedAt).getTime();
+            if (timeSinceUsed > 5 * 60 * 1000) {
+              console.log(
+                "[Auth] Magic token verification expired (used > 5m ago)",
+              );
+              return null;
+            }
+
+            const user = await User.findOne({ email: magicToken.email });
+            if (user) {
+              console.log(
+                "[Auth] Successfully authorized user via MagicToken:",
+                user.email,
+              );
+              // Optional: Delete token or mark as fully consumed to prevent reuse?
+              // For now, the 5m window is fine.
+              return {
+                id: String(user._id),
+                email: user.email,
+                name: user.name,
+              } as any;
+            }
+          }
+        } catch (err) {
+          console.error("[Auth] MagicToken check error:", err);
+        }
+
+        console.log("[Auth] Authorization failed");
+        return null;
       },
     }),
   ],

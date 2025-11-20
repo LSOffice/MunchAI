@@ -30,9 +30,30 @@ export async function POST(req: NextRequest) {
       await existing.save();
     }
 
+    // Rate limit: Check if a token was created for this email in the last 60 seconds
+    const recentToken = await MagicToken.findOne({
+      email,
+      createdAt: { $gt: new Date(Date.now() - 60 * 1000) },
+    });
+
+    if (recentToken) {
+      throw new APIError(
+        429,
+        "Please wait a minute before requesting another link",
+        "RATE_LIMIT",
+      );
+    }
+
     const token = randomBytes(32).toString("hex");
+    const requestId = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 1000 * 60 * 15); // 15 minutes
-    await MagicToken.create({ token, email, purpose: "login", expiresAt });
+    const created = await MagicToken.create({
+      token,
+      email,
+      requestId,
+      purpose: "login",
+      expiresAt,
+    });
 
     const origin =
       req.headers.get("origin") ||
@@ -41,7 +62,7 @@ export async function POST(req: NextRequest) {
     const link = `${origin}/api/auth/magic-link/verify?token=${token}`;
     await sendMagicLinkEmail(email, link);
 
-    return successResponse({ sent: true });
+    return successResponse({ sent: true, requestId });
   } catch (error) {
     return errorResponse(error);
   }

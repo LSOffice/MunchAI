@@ -25,6 +25,7 @@ export interface IRecipe {
   ingredients: IRecipeIngredient[];
   instructions: string[];
   tags: string[];
+  mealTypes: ("breakfast" | "lunch" | "dinner" | "snacks")[];
   nutrition?: IRecipeNutrition;
   imageUrl?: string;
   featured?: boolean;
@@ -68,6 +69,11 @@ const RecipeSchema = new Schema<IRecipe>(
     ingredients: { type: [RecipeIngredientSchema], default: [] },
     instructions: { type: [String], default: [] },
     tags: { type: [String], default: [] },
+    mealTypes: {
+      type: [String],
+      enum: ["breakfast", "lunch", "dinner", "snacks"],
+      default: [],
+    },
     nutrition: { type: NutritionSchema, required: false },
     imageUrl: { type: String },
     featured: { type: Boolean, default: false },

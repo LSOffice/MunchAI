@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Settings } from "lucide-react";
+import { Settings, Bookmark } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -14,7 +14,7 @@ export default function Navbar() {
     { href: "/scanner", label: "Scan Receipt" },
     { href: "/inventory", label: "Inventory" },
     { href: "/recipes", label: "Recipes" },
-    { href: "/saved", label: "Saved" },
+    { href: "/meal-plan", label: "Meal Plan" },
   ];
 
   const isActive = (href: string) => pathname === href;
@@ -49,8 +49,19 @@ export default function Navbar() {
               </Link>
             ))}
             <Link
+              href="/saved"
+              className={`rounded-md px-2 py-2 text-sm font-medium transition-colors ${
+                isActive("/saved")
+                  ? "bg-orange-100 text-orange-900 dark:bg-orange-900/20 dark:text-orange-400"
+                  : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              }`}
+              title="Saved Recipes"
+            >
+              <Bookmark className="h-5 w-5" />
+            </Link>
+            <Link
               href="/settings"
-              className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-md px-2 py-2 text-sm font-medium transition-colors ${
                 isActive("/settings")
                   ? "bg-orange-100 text-orange-900 dark:bg-orange-900/20 dark:text-orange-400"
                   : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
@@ -100,6 +111,18 @@ export default function Navbar() {
                   {item.label}
                 </Link>
               ))}
+              <Link
+                href="/saved"
+                onClick={() => setIsMenuOpen(false)}
+                className={`flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors ${
+                  isActive("/saved")
+                    ? "bg-orange-100 text-orange-900 dark:bg-orange-900/20 dark:text-orange-400"
+                    : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                }`}
+              >
+                <Bookmark className="h-5 w-5" />
+                Saved
+              </Link>
               <Link
                 href="/settings"
                 onClick={() => setIsMenuOpen(false)}

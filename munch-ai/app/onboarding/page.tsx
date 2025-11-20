@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { apiFetch } from "@/lib/utils";
 
 const DIETARY_OPTIONS = [
   { id: "vegan", label: "🌱 Vegan", emoji: "🌱" },
   { id: "vegetarian", label: "🥗 Vegetarian", emoji: "🥗" },
-  { id: "pescatarian", label: "🐟 Pescatarian", emoji: "🐟" },
   { id: "gluten-free", label: "🌾 Gluten-Free", emoji: "🌾" },
+  { id: "dairy-free", label: "🥛 Dairy-Free", emoji: "🥛" },
   { id: "keto", label: "🥓 Keto", emoji: "🥓" },
   { id: "paleo", label: "🍖 Paleo", emoji: "🍖" },
 ];
@@ -37,6 +38,7 @@ const CUISINE_OPTIONS = [
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { update: updateSession } = useSession();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [setupComplete, setSetupComplete] = useState(false);
@@ -85,6 +87,9 @@ export default function OnboardingPage() {
 
       // Wait for loading animation and let session update
       await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Refresh session to ensure NavbarWrapper updates
+      await updateSession();
 
       // Small delay to ensure session is synced
       await new Promise((resolve) => setTimeout(resolve, 500));

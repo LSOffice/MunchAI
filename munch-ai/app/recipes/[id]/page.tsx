@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, use, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Recipe } from "@/app/types";
 import { apiFetch } from "@/lib/utils";
@@ -11,12 +12,20 @@ export default function RecipeDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const addToMealPlan = searchParams.get("addToMealPlan");
+  const mealPlanDate = searchParams.get("date");
+  const mealPlanType = searchParams.get("mealType");
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const [userRating, setUserRating] = useState<number>(0);
   const [servings, setServings] = useState(2);
-  const [showNutrition, setShowNutrition] = useState(false);
+  const [showNutrition, setShowNutrition] = useState(true);
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
+    new Set(),
+  );
 
   useEffect(() => {
     const loadRecipe = async () => {
@@ -52,6 +61,35 @@ export default function RecipeDetail({
 
   const handleRate = (rating: number) => {
     setUserRating(rating);
+  };
+
+  const toggleIngredient = (idx: number) => {
+    setCheckedIngredients((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(idx)) {
+        newSet.delete(idx);
+      } else {
+        newSet.add(idx);
+      }
+      return newSet;
+    });
+  };
+
+  const handleAddToMealPlan = async () => {
+    if (!recipe || !mealPlanDate || !mealPlanType) return;
+    try {
+      await apiFetch("/api/user/meal-plan", {
+        method: "POST",
+        body: {
+          date: mealPlanDate,
+          mealType: mealPlanType,
+          recipeId: id,
+        },
+      });
+      router.push("/meal-plan");
+    } catch (error) {
+      console.error("Failed to add to meal plan:", error);
+    }
   };
 
   if (isLoading) {
@@ -127,7 +165,7 @@ export default function RecipeDetail({
             {recipe.rating && (
               <div className="flex items-center gap-2">
                 <span className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                  {recipe.rating}
+                  {recipe.rating.toFixed(1)}
                 </span>
                 <span className="text-xl sm:text-2xl text-yellow-400">★</span>
               </div>
@@ -182,7 +220,7 @@ export default function RecipeDetail({
             </div>
           </div>
           <div className="rounded-lg border border-gray-200 bg-white p-3 sm:p-4 text-center dark:border-gray-800 dark:bg-gray-800">
-            <div className="text-lg sm:text-2xl">📊</div>
+            <div className="text-lg sm:text-2xl">🎯</div>
             <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
               Difficulty
             </p>
@@ -204,15 +242,27 @@ export default function RecipeDetail({
                 {recipe.ingredients.map((ingredient, idx) => (
                   <div
                     key={idx}
-                    className="flex items-start justify-between border-b border-gray-200 py-2 sm:py-3 last:border-b-0 dark:border-gray-700 gap-2"
+                    className={`flex items-start justify-between border-b border-gray-200 py-2 sm:py-3 last:border-b-0 dark:border-gray-700 gap-2 px-3 sm:px-4 -mx-3 sm:-mx-4 transition-colors ${
+                      checkedIngredients.has(idx)
+                        ? "bg-green-50 dark:bg-green-900/20"
+                        : ""
+                    }`}
                   >
                     <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
                       <input
                         type="checkbox"
-                        className="mt-0.5 sm:mt-1 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-orange-600"
+                        checked={checkedIngredients.has(idx)}
+                        onChange={() => toggleIngredient(idx)}
+                        className="mt-0.5 sm:mt-1 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-green-600 cursor-pointer"
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white break-words">
+                        <p
+                          className={`text-xs sm:text-sm font-medium break-words transition-all ${
+                            checkedIngredients.has(idx)
+                              ? "line-through text-green-600 dark:text-green-400"
+                              : "text-gray-900 dark:text-white"
+                          }`}
+                        >
                           {ingredient.name}
                           {ingredient.optional && (
                             <span className="ml-1 sm:ml-2 text-xs text-gray-500 dark:text-gray-400">
@@ -228,7 +278,13 @@ export default function RecipeDetail({
                         )}
                       </div>
                     </div>
-                    <span className="ml-2 flex-shrink-0 whitespace-nowrap text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    <span
+                      className={`ml-2 flex-shrink-0 whitespace-nowrap text-xs sm:text-sm transition-all ${
+                        checkedIngredients.has(idx)
+                          ? "line-through text-green-600 dark:text-green-400"
+                          : "text-gray-600 dark:text-gray-400"
+                      }`}
+                    >
                       {Math.round(ingredient.quantity * scaleFactor * 10) / 10}{" "}
                       {ingredient.unit}
                     </span>
@@ -274,7 +330,15 @@ export default function RecipeDetail({
                 {isSaved ? "♥ Saved" : "Save Recipe"}
               </button>
 
-              <button className="w-full rounded-lg bg-orange-500 py-2 sm:py-3 text-xs sm:text-sm font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700">
+              <button
+                onClick={addToMealPlan ? handleAddToMealPlan : undefined}
+                disabled={!addToMealPlan}
+                className={`w-full rounded-lg py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors ${
+                  addToMealPlan
+                    ? "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                    : "bg-orange-500 text-white hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                }`}
+              >
                 Add to Meal Plan
               </button>
             </div>

@@ -69,21 +69,9 @@ export async function GET(req: NextRequest) {
       await user.save();
     }
 
-    // Create a short-lived login token for NextAuth Credentials provider
-    const secret = new TextEncoder().encode(
-      process.env.NEXTAUTH_SECRET || "dev-secret",
-    );
-    const loginToken = await new SignJWT({ uid: String(user._id) })
-      .setProtectedHeader({ alg: "HS256" })
-      .setIssuedAt()
-      .setExpirationTime("5m")
-      .sign(secret);
-
-    const redirectTo = new URL(
-      `/login?loginToken=${encodeURIComponent(loginToken)}&verified=1`,
-      req.url,
-    );
-    return NextResponse.redirect(redirectTo);
+    // Redirect to the magic link completion page
+    // The original tab will poll and detect that the token has been used
+    return NextResponse.redirect(new URL("/magic-link", req.url));
   } catch (error) {
     return errorResponse(error);
   }

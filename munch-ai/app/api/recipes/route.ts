@@ -21,13 +21,49 @@ export async function GET(request: NextRequest) {
         .get("tags")
         ?.split(",")
         .filter((t) => t) || [];
+    const mealTypes =
+      searchParams
+        .get("mealTypes")
+        ?.split(",")
+        .filter((t) => t) || [];
     const source = searchParams.get("source");
+    const minCookTime = searchParams.get("minCookTime");
+    const maxCookTime = searchParams.get("maxCookTime");
+    const maxTotalTime = searchParams.get("maxTotalTime");
 
     await connectMongo();
     const query: any = {};
     if (difficulty && difficulty !== "all") query.difficulty = difficulty;
     if (source) query.source = source;
-    if (tags.length) query.tags = { $all: tags };
+    if (mealTypes.length > 0) {
+      query.mealTypes = { $in: mealTypes };
+    }
+
+    // Handle cooking time filter
+    if (minCookTime) {
+      query.cookTime = { ...query.cookTime, $gte: parseInt(minCookTime) };
+    }
+    if (maxCookTime) {
+      query.cookTime = { ...query.cookTime, $lte: parseInt(maxCookTime) };
+    }
+
+    // Handle total time filter (prepTime + cookTime)
+    if (maxTotalTime) {
+      const maxTotal = parseInt(maxTotalTime);
+      // Use $expr to calculate total time on the fly
+      query.$expr = {
+        $lte: [{ $add: ["$prepTime", "$cookTime"] }, maxTotal],
+      };
+    }
+
+    // Handle both ingredient names and tags
+    if (tags.length) {
+      query.$or = [
+        { tags: { $in: tags } },
+        { "ingredients.name": { $in: tags.map((t) => new RegExp(t, "i")) } },
+      ];
+    }
+
     if (q) {
       query.$or = [
         { title: { $regex: q, $options: "i" } },
@@ -35,6 +71,9 @@ export async function GET(request: NextRequest) {
         { "ingredients.name": { $regex: q, $options: "i" } },
       ];
     }
+
+    console.log("Recipe query:", JSON.stringify(query, null, 2));
+
     const docs = await RecipeModel.find(query).lean();
     const results = docs.map((d) => ({
       id: String(d._id),
@@ -47,6 +86,7 @@ export async function GET(request: NextRequest) {
       ingredients: d.ingredients,
       instructions: d.instructions,
       tags: d.tags,
+      mealTypes: d.mealTypes,
       nutrition: d.nutrition,
       imageUrl: d.imageUrl,
       featured: d.featured,

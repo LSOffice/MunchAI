@@ -15,23 +15,23 @@ export default function Dashboard() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [recipesRes, ingredientsRes, savedRes, mealRes] =
+        const [featuredRes, ingredientsRes, savedRes, mealRes] =
           await Promise.all([
-            apiFetch("/api/recipes"),
+            apiFetch("/api/recipes/featured"),
             apiFetch("/api/ingredients"),
             apiFetch("/api/user/saved-recipes"),
             apiFetch("/api/user/meal-plan"),
           ]);
 
-        const [recipesData, ingredientsData, savedData, mealData] =
+        const [featuredData, ingredientsData, savedData, mealData] =
           await Promise.all([
-            recipesRes.json(),
+            featuredRes.json(),
             ingredientsRes.json(),
             savedRes.json(),
             mealRes.json(),
           ]);
 
-        setRecentRecipes(recipesData.data?.slice(0, 3) || []);
+        setRecentRecipes(featuredData.data || []);
         setIngredients(ingredientsData.data || []);
         setSavedRecipes(savedData.data || []);
         setMealPlan(mealData.data || []);
@@ -45,13 +45,15 @@ export default function Dashboard() {
     loadData();
   }, []);
 
-  const expiringCount = ingredients.filter((ing) => {
+  const expiringIngredients = ingredients.filter((ing) => {
     const daysLeft = Math.floor(
       (new Date(ing.expirationDate).getTime() - new Date().getTime()) /
         (1000 * 60 * 60 * 24),
     );
     return daysLeft <= 3 && daysLeft >= 0;
-  }).length;
+  });
+
+  const expiringCount = expiringIngredients.length;
 
   const stats = [
     {
@@ -147,26 +149,29 @@ export default function Dashboard() {
         </div>
 
         {/* Expiring Soon Alert */}
-        <div className="mb-6 sm:mb-8 rounded-lg border-l-4 border-yellow-400 bg-yellow-50 p-3 sm:p-4 dark:bg-yellow-900/20">
-          <div className="flex items-start gap-2 sm:gap-3">
-            <div className="flex-shrink-0 text-xl sm:text-2xl">⏰</div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-sm sm:text-base font-semibold text-yellow-800 dark:text-yellow-400">
-                3 ingredients expiring in the next 3 days
-              </h3>
-              <p className="mt-1 text-xs sm:text-sm text-yellow-700 dark:text-yellow-300">
-                Tomatoes, spinach, and milk are expiring soon. Try making a
-                recipe with them!
-              </p>
-              <Link
-                href="/inventory"
-                className="mt-2 inline-block text-xs sm:text-sm font-semibold text-yellow-800 underline hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300"
-              >
-                View inventory →
-              </Link>
+        {expiringCount > 0 && (
+          <div className="mb-6 sm:mb-8 rounded-lg border-l-4 border-yellow-400 bg-yellow-50 p-3 sm:p-4 dark:bg-yellow-900/20">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <div className="flex-shrink-0 text-xl sm:text-2xl">⏰</div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm sm:text-base font-semibold text-yellow-800 dark:text-yellow-400">
+                  {expiringCount} ingredient{expiringCount !== 1 ? "s" : ""}{" "}
+                  expiring in the next 3 days
+                </h3>
+                <p className="mt-1 text-xs sm:text-sm text-yellow-700 dark:text-yellow-300">
+                  {expiringIngredients.map((ing) => ing.name).join(", ")} are
+                  expiring soon. Try making a recipe with them!
+                </p>
+                <Link
+                  href="/inventory"
+                  className="mt-2 inline-block text-xs sm:text-sm font-semibold text-yellow-800 underline hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300"
+                >
+                  View inventory →
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Recent Activity */}
         <div>

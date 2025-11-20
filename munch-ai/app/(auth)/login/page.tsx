@@ -1,17 +1,40 @@
 "use client";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+function base64URLStringToBuffer(base64URLString: string) {
+  const base64 = base64URLString.replace(/-/g, "+").replace(/_/g, "/");
+  const padLen = (4 - (base64.length % 4)) % 4;
+  const padded = base64.padEnd(base64.length + padLen, "=");
+  const binary = atob(padded);
+  const buffer = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    buffer[i] = binary.charCodeAt(i);
+  }
+  return buffer;
+}
+
+function bufferToBase64URLString(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
+function LoginContent() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<"email" | "auth">("email");
+  const [step, setStep] = useState<"email" | "auth" | "waiting">("email");
+  const [resendTimer, setResendTimer] = useState(0);
   const [emailVerified, setEmailVerified] = useState(false);
   const [hasPasskey, setHasPasskey] = useState(false);
+  const [requestId, setRequestId] = useState<string | null>(null);
   const search = useSearchParams();
 
   useEffect(() => {
@@ -22,19 +45,7 @@ export default function LoginPage() {
       sessionStorage.removeItem("authError");
     }
 
-    const lt = search.get("loginToken");
-    if (!lt) return;
-    // Complete sign-in using short-lived loginToken (from magic link or passkey)
-    (async () => {
-      setLoading(true);
-      const res = await signIn("credentials", {
-        loginToken: lt,
-        redirect: true,
-        callbackUrl: "/dashboard",
-      });
-      if (!res?.ok) setError("Failed to complete sign-in");
-      setLoading(false);
-    })();
+    // Magic link completion moved to /magic-link page; only handle passkey logins here.
   }, [search]);
 
   // Verify email exists in the system
@@ -90,47 +101,50 @@ export default function LoginPage() {
         },
       );
       if (!start.ok) throw new Error("Failed to start passkey");
-      const options = await start.json();
+      const resp = await start.json();
+      const options = resp.data || resp;
+
+      // Convert base64url strings to Buffers
+      options.challenge = base64URLStringToBuffer(options.challenge);
+      if (options.allowCredentials) {
+        options.allowCredentials = options.allowCredentials.map(
+          (cred: any) => ({
+            ...cred,
+            id: base64URLStringToBuffer(cred.id),
+          }),
+        );
+      }
+
       // @ts-ignore - using WebAuthn browser API
       const cred: PublicKeyCredential = await navigator.credentials.get({
         publicKey: options,
       });
       const response = {
         id: cred.id,
-        rawId: Array.from(new Uint8Array(cred.rawId)),
+        rawId: bufferToBase64URLString(cred.rawId),
         type: cred.type,
         response: {
-          clientDataJSON: Array.from(
-            new Uint8Array(
-              (cred.response as AuthenticatorAssertionResponse).clientDataJSON,
-            ),
+          clientDataJSON: bufferToBase64URLString(
+            (cred.response as AuthenticatorAssertionResponse).clientDataJSON,
           ),
-          authenticatorData: Array.from(
-            new Uint8Array(
-              (
-                cred.response as AuthenticatorAssertionResponse
-              ).authenticatorData,
-            ),
+          authenticatorData: bufferToBase64URLString(
+            (cred.response as AuthenticatorAssertionResponse).authenticatorData,
           ),
-          signature: Array.from(
-            new Uint8Array(
-              (cred.response as AuthenticatorAssertionResponse).signature,
-            ),
+          signature: bufferToBase64URLString(
+            (cred.response as AuthenticatorAssertionResponse).signature,
           ),
           userHandle: (cred.response as AuthenticatorAssertionResponse)
             .userHandle
-            ? Array.from(
-                new Uint8Array(
-                  (cred.response as AuthenticatorAssertionResponse)
-                    .userHandle as ArrayBuffer,
-                ),
+            ? bufferToBase64URLString(
+                (cred.response as AuthenticatorAssertionResponse).userHandle!,
               )
-            : null,
+            : undefined,
         },
         clientExtensionResults:
           (cred.getClientExtensionResults &&
             cred.getClientExtensionResults()) ||
           {},
+        authenticatorAttachment: cred.authenticatorAttachment,
       };
       const verify = await fetch("/api/auth/passkey/verify-authentication", {
         method: "POST",
@@ -153,6 +167,7 @@ export default function LoginPage() {
     }
   };
 
+  // Handle sending the magic link and move to waiting state
   const sendMagicLink = async () => {
     setLoading(true);
     setError(null);
@@ -166,13 +181,55 @@ export default function LoginPage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error?.message || "Failed to send magic link");
       }
-      alert("Check your email for a sign-in link.");
+      const data = await res.json();
+      if (data.data?.requestId) {
+        setRequestId(data.data.requestId);
+      }
+      // Transition to waiting state and start resend timer
+      setStep("waiting");
+      setResendTimer(30);
     } catch (err: any) {
       setError(err?.message || "Failed to send magic link");
     } finally {
       setLoading(false);
     }
   };
+
+  // Countdown for resend button
+  useEffect(() => {
+    if (step !== "waiting" || resendTimer <= 0) return;
+    const id = setInterval(() => setResendTimer((t) => t - 1), 1000);
+    return () => clearInterval(id);
+  }, [step, resendTimer]);
+
+  // Poll for magic link verification every 2 seconds while on waiting page
+  useEffect(() => {
+    if (step !== "waiting" || !requestId) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/auth/magic-link/poll?requestId=${requestId}`,
+        );
+        const data = await res.json();
+
+        if (data.data?.success && data.data?.token) {
+          // Magic link clicked! Sign in and redirect to dashboard
+          setLoading(true);
+          clearInterval(pollInterval); // Stop polling immediately
+          await signIn("credentials", {
+            loginToken: data.data.token,
+            redirect: true,
+            callbackUrl: "/dashboard",
+          });
+        }
+      } catch (err) {
+        console.error("Poll error:", err);
+      }
+    }, 2000);
+
+    return () => clearInterval(pollInterval);
+  }, [step, requestId]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 px-4 sm:px-6 lg:px-8">
@@ -361,6 +418,55 @@ export default function LoginPage() {
             </div>
           )}
 
+          {/* Step 3: Waiting for Magic Link */}
+          {step === "waiting" && (
+            <div className="space-y-6">
+              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 flex items-start gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-500/10">
+                  <span className="text-lg">📧</span>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
+                    Magic link sent
+                  </p>
+                  <p className="mt-1 text-xs text-orange-700/80 dark:text-orange-300/70">
+                    We've emailed a secure sign-in link to {email}. Click it in
+                    the next 15 minutes to finish signing in.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+                </span>
+                Waiting for you to click the link...
+              </div>
+              <button
+                onClick={sendMagicLink}
+                disabled={loading || resendTimer > 0}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold py-3 rounded-lg transition-all duration-200 shadow-lg"
+              >
+                {loading
+                  ? "Sending..."
+                  : resendTimer > 0
+                    ? `Resend in ${resendTimer}s`
+                    : "Resend Magic Link"}
+              </button>
+              <button
+                onClick={() => {
+                  setStep("email");
+                  setEmailVerified(false);
+                  setError(null);
+                  setResendTimer(0);
+                }}
+                className="w-full text-center px-4 py-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold transition-all"
+              >
+                ← Use Different Email
+              </button>
+            </div>
+          )}
+
           {/* Divider */}
           {step === "email" && (
             <>
@@ -405,5 +511,39 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-white to-orange-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+          <div className="text-center">
+            <svg
+              className="w-12 h-12 mx-auto text-orange-500 animate-spin"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="2"
+                opacity="0.25"
+              ></circle>
+              <path
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+          </div>
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

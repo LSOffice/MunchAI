@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
     await connectMongo();
     const docs = await SavedRecipeModel.find({ userId }).lean();
     const saved = docs.map((d) => ({
-      id: String(d._id),
+      id: d.recipeId ? String(d.recipeId) : String(d._id),
+      savedRecipeId: String(d._id),
       title: d.title,
       description: d.description,
       servings: d.servings,
@@ -55,11 +56,12 @@ export async function POST(request: NextRequest) {
       throw new APIError(401, "Unauthorized", "UNAUTHORIZED");
     }
     const body = await request.json();
-    if (!body.id) {
+    const recipeId = body.id || body.recipeId;
+    if (!recipeId) {
       throw new APIError(400, "Recipe ID is required", "INVALID_REQUEST");
     }
     await connectMongo();
-    const recipe = (await RecipeModel.findById(body.id).lean()) as any;
+    const recipe = (await RecipeModel.findById(recipeId).lean()) as any;
     if (!recipe) {
       throw new APIError(404, "Recipe not found", "NOT_FOUND");
     }
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
       savedAt: new Date(),
       notes: body.notes || "",
     });
-    return successResponse({ id: String(doc._id) }, 201);
+    return successResponse({ id: String(recipe._id) }, 201);
   } catch (error) {
     return errorResponse(error);
   }

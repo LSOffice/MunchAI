@@ -7,12 +7,16 @@ interface RecipeCardProps {
   recipe: Recipe;
   onSave?: (recipeId: string) => void;
   onRate?: (recipeId: string, rating: number) => void;
+  onAddToMealPlan?: (recipeId: string) => void;
+  mealPlanParams?: string;
 }
 
 export default function RecipeCard({
   recipe,
   onSave,
   onRate,
+  onAddToMealPlan,
+  mealPlanParams,
 }: RecipeCardProps) {
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
@@ -32,7 +36,9 @@ export default function RecipeCard({
 
       {/* Content */}
       <div className="p-3 sm:p-4">
-        <Link href={`/recipes/${recipe.id}`}>
+        <Link
+          href={`/recipes/${recipe.id}${mealPlanParams ? `?${mealPlanParams}` : ""}`}
+        >
           <h3 className="mb-2 text-sm sm:text-lg font-semibold text-gray-900 hover:text-orange-600 dark:text-white dark:hover:text-orange-400 line-clamp-2">
             {recipe.title}
           </h3>
@@ -85,24 +91,35 @@ export default function RecipeCard({
           </div>
 
           <div className="flex gap-1 sm:gap-2">
-            {onSave && (
+            {onAddToMealPlan ? (
               <button
-                onClick={() => onSave(recipe.id)}
-                className={`rounded px-2 sm:px-2.5 py-1 text-xs font-medium transition-colors ${
-                  recipe.saved
-                    ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                }`}
+                onClick={() => onAddToMealPlan(recipe.id)}
+                className="rounded bg-orange-500 px-2 sm:px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
               >
-                {recipe.saved ? "♥" : "Save"}
+                Add to Meal
               </button>
+            ) : (
+              <>
+                {onSave && (
+                  <button
+                    onClick={() => onSave(recipe.id)}
+                    className={`rounded px-2 sm:px-2.5 py-1 text-xs font-medium transition-colors ${
+                      recipe.saved
+                        ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                    }`}
+                  >
+                    {recipe.saved ? "♥" : "Save"}
+                  </button>
+                )}
+                <Link
+                  href={`/recipes/${recipe.id}${mealPlanParams ? `?${mealPlanParams}` : ""}`}
+                  className="rounded bg-orange-500 px-2 sm:px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
+                >
+                  View
+                </Link>
+              </>
             )}
-            <Link
-              href={`/recipes/${recipe.id}`}
-              className="rounded bg-orange-500 px-2 sm:px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-orange-600 dark:bg-orange-600 dark:hover:bg-orange-700"
-            >
-              View
-            </Link>
           </div>
         </div>
       </div>

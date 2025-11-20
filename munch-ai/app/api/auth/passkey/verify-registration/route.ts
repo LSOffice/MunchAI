@@ -34,17 +34,27 @@ export async function POST(req: NextRequest) {
 
     const { origin, rpID } = getOriginAndRpID(req.headers.get("origin"));
 
+    console.log("Verifying registration with:", {
+      expectedChallenge: user.currentChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+      credentialId: credential.id,
+    });
+
     const verification = (await verifyRegistrationResponse({
       response: credential,
       expectedChallenge: user.currentChallenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
       requireUserVerification: true,
-    } as any).catch((e: any) => ({
-      verified: false,
-      error: e,
-      registrationInfo: null,
-    }))) as any;
+    } as any).catch((e: any) => {
+      console.error("Verification error details:", e);
+      return {
+        verified: false,
+        error: e,
+        registrationInfo: null,
+      };
+    })) as any;
 
     if (!verification.verified || !verification.registrationInfo) {
       throw new APIError(
@@ -57,10 +67,24 @@ export async function POST(req: NextRequest) {
     const { credentialPublicKey, credentialID, counter } =
       verification.registrationInfo as any;
 
+    console.log("Verification successful. Info:", {
+      credentialIDType: typeof credentialID,
+      isBuffer: Buffer.isBuffer(credentialID),
+      isArray: Array.isArray(credentialID),
+      isUint8Array: credentialID instanceof Uint8Array,
+      length: credentialID?.length,
+    });
+
     user.passkeys = user.passkeys || [];
-    const exists = user.passkeys.find((pk: any) =>
-      pk.credentialID.equals(Buffer.from(credentialID)),
-    );
+    const exists = user.passkeys.find((pk: any) => {
+      if (!pk.credentialID) return false;
+      // Ensure both are buffers for comparison
+      const pkBuf = Buffer.isBuffer(pk.credentialID)
+        ? pk.credentialID
+        : Buffer.from(pk.credentialID);
+      const newBuf = Buffer.from(credentialID);
+      return pkBuf.equals(newBuf);
+    });
     if (!exists) {
       user.passkeys.push({
         credentialID: Buffer.from(credentialID),

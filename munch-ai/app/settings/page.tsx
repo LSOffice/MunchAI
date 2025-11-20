@@ -6,6 +6,27 @@ import { signOut } from "next-auth/react";
 import { UserProfile } from "../types";
 import { apiFetch } from "@/lib/utils";
 
+function base64URLStringToBuffer(base64URLString: string) {
+  const base64 = base64URLString.replace(/-/g, "+").replace(/_/g, "/");
+  const padLen = (4 - (base64.length % 4)) % 4;
+  const padded = base64.padEnd(base64.length + padLen, "=");
+  const binary = atob(padded);
+  const buffer = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    buffer[i] = binary.charCodeAt(i);
+  }
+  return buffer;
+}
+
+function bufferToBase64URLString(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+
 export default function Settings() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<
@@ -36,31 +57,31 @@ export default function Settings() {
   }, []);
 
   const dietaryOptions = [
-    "vegetarian",
-    "vegan",
-    "gluten-free",
-    "dairy-free",
-    "keto",
-    "paleo",
+    { id: "vegan", label: "vegan", emoji: "🌱" },
+    { id: "vegetarian", label: "vegetarian", emoji: "🥗" },
+    { id: "gluten-free", label: "gluten-free", emoji: "🌾" },
+    { id: "dairy-free", label: "dairy-free", emoji: "🥛" },
+    { id: "keto", label: "keto", emoji: "🥓" },
+    { id: "paleo", label: "paleo", emoji: "🍖" },
   ];
   const allergyOptions = [
-    "peanuts",
-    "tree nuts",
-    "shellfish",
-    "fish",
-    "eggs",
-    "dairy",
-    "soy",
+    { id: "peanuts", label: "peanuts", emoji: "🥜" },
+    { id: "tree-nuts", label: "tree nuts", emoji: "🌳" },
+    { id: "shellfish", label: "shellfish", emoji: "🦐" },
+    { id: "fish", label: "fish", emoji: "🐠" },
+    { id: "eggs", label: "eggs", emoji: "🥚" },
+    { id: "dairy", label: "dairy", emoji: "🧀" },
+    { id: "soy", label: "soy", emoji: "🫘" },
   ];
   const cuisineOptions = [
-    "Italian",
-    "Asian",
-    "Mediterranean",
-    "Mexican",
-    "Indian",
-    "Thai",
-    "Greek",
-    "American",
+    { id: "italian", label: "italian", emoji: "🇮🇹" },
+    { id: "asian", label: "asian", emoji: "🥢" },
+    { id: "mediterranean", label: "mediterranean", emoji: "🫒" },
+    { id: "mexican", label: "mexican", emoji: "🌮" },
+    { id: "indian", label: "indian", emoji: "🍛" },
+    { id: "thai", label: "thai", emoji: "🌶️" },
+    { id: "greek", label: "greek", emoji: "🏛️" },
+    { id: "american", label: "american", emoji: "🍔" },
   ];
 
   const handleSave = async () => {
@@ -258,21 +279,20 @@ export default function Settings() {
                 Select any dietary restrictions you have. We'll filter recipes
                 accordingly.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="flex flex-wrap gap-2">
                 {dietaryOptions.map((option) => (
-                  <label key={option} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={(formData.dietaryRestrictions || []).includes(
-                        option,
-                      )}
-                      onChange={() => toggleDietary(option)}
-                      className="h-4 w-4 rounded border-gray-300 text-orange-600"
-                    />
-                    <span className="ml-2 text-xs sm:text-sm capitalize text-gray-700 dark:text-gray-300">
-                      {option}
-                    </span>
-                  </label>
+                  <button
+                    key={option.id}
+                    onClick={() => toggleDietary(option.id)}
+                    className={`rounded-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-all ${
+                      (formData.dietaryRestrictions || []).includes(option.id)
+                        ? "bg-green-500 text-white shadow-md"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    <span className="mr-1">{option.emoji}</span>
+                    {option.label}
+                  </button>
                 ))}
               </div>
             </div>
@@ -286,19 +306,20 @@ export default function Settings() {
                 Select all allergies to keep you safe. Recipes will exclude
                 these ingredients.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="flex flex-wrap gap-2">
                 {allergyOptions.map((option) => (
-                  <label key={option} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={(formData.allergies || []).includes(option)}
-                      onChange={() => toggleAllergy(option)}
-                      className="h-4 w-4 rounded border-gray-300 text-orange-600"
-                    />
-                    <span className="ml-2 text-xs sm:text-sm capitalize text-gray-700 dark:text-gray-300">
-                      {option}
-                    </span>
-                  </label>
+                  <button
+                    key={option.id}
+                    onClick={() => toggleAllergy(option.id)}
+                    className={`rounded-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-all ${
+                      (formData.allergies || []).includes(option.id)
+                        ? "bg-red-500 text-white shadow-md"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    <span className="mr-1">{option.emoji}</span>
+                    {option.label}
+                  </button>
                 ))}
               </div>
             </div>
@@ -312,21 +333,20 @@ export default function Settings() {
                 Select your preferred cuisines to get personalized recipe
                 recommendations.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="flex flex-wrap gap-2">
                 {cuisineOptions.map((option) => (
-                  <label key={option} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={(formData.cuisinePreferences || []).includes(
-                        option,
-                      )}
-                      onChange={() => toggleCuisine(option)}
-                      className="h-4 w-4 rounded border-gray-300 text-orange-600"
-                    />
-                    <span className="ml-2 text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-                      {option}
-                    </span>
-                  </label>
+                  <button
+                    key={option.id}
+                    onClick={() => toggleCuisine(option.id)}
+                    className={`rounded-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-all ${
+                      (formData.cuisinePreferences || []).includes(option.id)
+                        ? "bg-blue-500 text-white shadow-md"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    <span className="mr-1">{option.emoji}</span>
+                    {option.label}
+                  </button>
                 ))}
               </div>
             </div>
@@ -379,7 +399,24 @@ export default function Settings() {
                           throw new Error(
                             "Failed to start passkey registration",
                           );
-                        const options = await start.json();
+                        const resp = await start.json();
+                        const options = resp.data || resp;
+
+                        // Convert base64url strings to Buffers
+                        options.challenge = base64URLStringToBuffer(
+                          options.challenge,
+                        );
+                        options.user.id = base64URLStringToBuffer(
+                          options.user.id,
+                        );
+                        if (options.excludeCredentials) {
+                          options.excludeCredentials =
+                            options.excludeCredentials.map((cred: any) => ({
+                              ...cred,
+                              id: base64URLStringToBuffer(cred.id),
+                            }));
+                        }
+
                         // @ts-ignore
                         const cred: PublicKeyCredential =
                           await navigator.credentials.create({
@@ -389,19 +426,20 @@ export default function Settings() {
                           cred.response as AuthenticatorAttestationResponse;
                         const credential = {
                           id: cred.id,
-                          rawId: Array.from(new Uint8Array(cred.rawId)),
+                          rawId: bufferToBase64URLString(cred.rawId),
                           type: cred.type,
                           response: {
-                            clientDataJSON: Array.from(
-                              new Uint8Array(attResp.clientDataJSON),
+                            clientDataJSON: bufferToBase64URLString(
+                              attResp.clientDataJSON,
                             ),
-                            attestationObject: Array.from(
-                              new Uint8Array(attResp.attestationObject),
+                            attestationObject: bufferToBase64URLString(
+                              attResp.attestationObject,
                             ),
                           },
                           transports: (cred as any).transports || [],
                           clientExtensionResults:
                             cred.getClientExtensionResults(),
+                          authenticatorAttachment: cred.authenticatorAttachment,
                         };
                         const verify = await fetch(
                           "/api/auth/passkey/verify-registration",

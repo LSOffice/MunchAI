@@ -302,7 +302,7 @@ async function seedDatabase() {
         tags: ["italian", "pasta", "vegetarian"],
         nutrition: { calories: 450, protein: 18, carbs: 55, fat: 16 },
         imageUrl:
-          "https://images.unsplash.com/photo-1612874742237-415d69e1b5c5?w=500&h=500&fit=crop",
+          "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=500&h=500&fit=crop",
         featured: true,
         source: "verified",
         rating: 4.5,

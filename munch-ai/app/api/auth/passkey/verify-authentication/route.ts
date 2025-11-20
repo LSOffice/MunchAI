@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
 
     const { origin, rpID } = getOriginAndRpID(req.headers.get("origin"));
 
+    console.log("Verifying authentication with:", {
+      expectedChallenge: user.currentChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+      credentialId: credential.id,
+    });
+
     // Find the matching passkey
     const matchingPasskey = user.passkeys
       .map((pk: any) => ({
@@ -55,11 +62,14 @@ export async function POST(req: NextRequest) {
       expectedRPID: rpID,
       requireUserVerification: true,
       authenticator: matchingPasskey as any,
-    } as any).catch((e: any) => ({
-      verified: false,
-      error: e,
-      authenticationInfo: null,
-    }));
+    } as any).catch((e: any) => {
+      console.error("Authentication verification error:", e);
+      return {
+        verified: false,
+        error: e,
+        authenticationInfo: null,
+      };
+    });
 
     if (!verification.verified || !verification.authenticationInfo) {
       throw new APIError(400, "Authentication failed", "VERIFY_FAILED");

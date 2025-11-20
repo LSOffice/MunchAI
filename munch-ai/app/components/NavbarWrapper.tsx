@@ -1,16 +1,19 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Navbar from "./Navbar";
 import LandingNavbar from "./LandingNavbar";
 
-export default function NavbarWrapper({ session }: { session: boolean }) {
+export default function NavbarWrapper() {
   const pathname = usePathname();
   const hideNavbar = pathname === "/onboarding";
+  const { status } = useSession();
+  const isAuthed = status === "authenticated";
 
   if (hideNavbar) {
     return null;
   }
 
-  return session ? <Navbar /> : <LandingNavbar />;
+  return isAuthed ? <Navbar /> : <LandingNavbar />;
 }
