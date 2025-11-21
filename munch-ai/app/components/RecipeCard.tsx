@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Recipe } from "../types";
 
 interface RecipeCardProps {
@@ -23,10 +24,11 @@ export default function RecipeCard({
       {/* Image */}
       {recipe.imageUrl && (
         <div className="relative h-32 sm:h-40 md:h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
-          <img
+          <Image
             src={recipe.imageUrl}
             alt={recipe.title}
-            className="h-full w-full object-cover"
+            fill
+            className="object-cover"
           />
           <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2 sm:px-3 py-0.5 sm:py-1 text-xs font-semibold text-gray-900 dark:bg-gray-900/90 dark:text-white">
             {recipe.difficulty}

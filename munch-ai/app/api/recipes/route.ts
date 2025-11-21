@@ -26,6 +26,11 @@ export async function GET(request: NextRequest) {
         .get("mealTypes")
         ?.split(",")
         .filter((t) => t) || [];
+    const cuisines =
+      searchParams
+        .get("cuisines")
+        ?.split(",")
+        .filter((c) => c) || [];
     const source = searchParams.get("source");
     const minCookTime = searchParams.get("minCookTime");
     const maxCookTime = searchParams.get("maxCookTime");
@@ -33,10 +38,15 @@ export async function GET(request: NextRequest) {
 
     await connectMongo();
     const query: any = {};
+    const orConditions: any[] = [];
+
     if (difficulty && difficulty !== "all") query.difficulty = difficulty;
     if (source) query.source = source;
     if (mealTypes.length > 0) {
       query.mealTypes = { $in: mealTypes };
+    }
+    if (cuisines.length > 0) {
+      query.tags = { $in: cuisines.map((c) => new RegExp(c, "i")) };
     }
 
     // Handle cooking time filter
@@ -58,24 +68,88 @@ export async function GET(request: NextRequest) {
 
     // Handle both ingredient names and tags
     if (tags.length) {
-      query.$or = [
+      orConditions.push(
         { tags: { $in: tags } },
         { "ingredients.name": { $in: tags.map((t) => new RegExp(t, "i")) } },
-      ];
+      );
     }
 
     if (q) {
-      query.$or = [
+      orConditions.push(
         { title: { $regex: q, $options: "i" } },
         { description: { $regex: q, $options: "i" } },
         { "ingredients.name": { $regex: q, $options: "i" } },
-      ];
+      );
+    }
+
+    if (orConditions.length > 0) {
+      query.$or = orConditions;
     }
 
     console.log("Recipe query:", JSON.stringify(query, null, 2));
 
     const docs = await RecipeModel.find(query).lean();
-    const results = docs.map((d) => ({
+
+    // Score and sort recipes based on filter matches and user preferences
+    const scoredRecipes = docs.map((d) => {
+      let score = 0;
+
+      // Base score from rating (higher rated recipes score higher)
+      score += (d.rating || 0) * 10;
+
+      // Bonus for exact difficulty match
+      if (difficulty && difficulty !== "all" && d.difficulty === difficulty) {
+        score += 50;
+      }
+
+      // Bonus for each tag that matches user filters
+      tags.forEach((tag) => {
+        if (
+          d.tags.some((dTag: any) =>
+            dTag.toLowerCase().includes(tag.toLowerCase()),
+          )
+        ) {
+          score += 30;
+        }
+        if (
+          d.ingredients.some((ing: any) =>
+            ing.name.toLowerCase().includes(tag.toLowerCase()),
+          )
+        ) {
+          score += 20;
+        }
+      });
+
+      // Bonus for meal type match
+      if (mealTypes.length > 0) {
+        const mealTypeMatches = d.mealTypes.filter((mt: any) =>
+          mealTypes.includes(mt),
+        ).length;
+        score += mealTypeMatches * 40;
+      }
+
+      // Bonus for source (verified recipes score higher)
+      if (d.source === "verified") {
+        score += 15;
+      }
+
+      // Slight bonus for featured recipes
+      if (d.featured) {
+        score += 5;
+      }
+
+      return { recipe: d, score };
+    });
+
+    // Sort by score descending (highest first), then by rating
+    scoredRecipes.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return (b.recipe.rating || 0) - (a.recipe.rating || 0);
+    });
+
+    const results = scoredRecipes.map(({ recipe: d }) => ({
       id: String(d._id),
       title: d.title,
       description: d.description,

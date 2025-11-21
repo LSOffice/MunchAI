@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MealPlanEntry } from "../types";
 import { apiFetch } from "@/lib/utils";
+import { toast } from "sonner";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snacks";
 
@@ -23,6 +24,10 @@ export default function MealPlan() {
   const [loading, setLoading] = useState(true);
   const [viewDays, setViewDays] = useState<3 | 7>(3);
   const [threeDayOffset, setThreeDayOffset] = useState<number>(0);
+  const [pendingRecipe, setPendingRecipe] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
 
   const mealTypes: MealType[] = ["breakfast", "lunch", "dinner", "snacks"];
   const mealEmojis: Record<MealType, string> = {
@@ -134,6 +139,20 @@ export default function MealPlan() {
         });
 
         setWeekMeals(newWeekMeals);
+
+        // Check for pending recipe from sessionStorage
+        const pending = sessionStorage.getItem("pendingRecipe");
+        if (pending) {
+          const recipeData = JSON.parse(pending);
+          setPendingRecipe(recipeData);
+          sessionStorage.removeItem("pendingRecipe");
+
+          // Show toast
+          toast.info(`Choose where to add the dish: ${recipeData.title}`, {
+            duration: Infinity,
+            closeButton: true,
+          });
+        }
       } catch (error) {
         console.error("Failed to load meal plan:", error);
       } finally {
@@ -164,6 +183,58 @@ export default function MealPlan() {
       });
     } catch (error) {
       console.error("Failed to remove meal:", error);
+    }
+  };
+
+  const handleAddRecipeToSlot = async (dateStr: string, mealType: MealType) => {
+    if (!pendingRecipe) return;
+
+    try {
+      const response = await apiFetch("/api/user/meal-plan", {
+        method: "POST",
+        body: {
+          date: dateStr,
+          mealType: mealType,
+          recipeId: pendingRecipe.id,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to add recipe");
+      }
+
+      // Clear pending recipe and dismiss toast
+      setPendingRecipe(null);
+      toast.dismiss();
+
+      // Reload meal plan data
+      const mealRes = await apiFetch("/api/user/meal-plan");
+      const mealData = await mealRes.json();
+
+      // Initialize week structure
+      const newWeekMeals: WeekMeals = {};
+      Object.keys(weekDates).forEach((date) => {
+        newWeekMeals[date] = {
+          breakfast: null,
+          lunch: null,
+          dinner: null,
+          snacks: null,
+        };
+      });
+
+      // Populate with existing meals
+      (mealData.data || []).forEach((entry: MealPlanEntry) => {
+        const dateStr = new Date(entry.date).toISOString().split("T")[0];
+        if (newWeekMeals[dateStr]) {
+          newWeekMeals[dateStr][entry.mealType as MealType] = entry;
+        }
+      });
+
+      setWeekMeals(newWeekMeals);
+      toast.success("Recipe added to meal plan!");
+    } catch (error) {
+      console.error("Failed to add recipe:", error);
+      toast.error("Failed to add recipe to meal plan");
     }
   };
 
@@ -305,6 +376,15 @@ export default function MealPlan() {
                             Remove
                           </button>
                         </div>
+                      ) : pendingRecipe ? (
+                        <button
+                          onClick={() =>
+                            handleAddRecipeToSlot(dateStr, mealType)
+                          }
+                          className="w-full py-2 text-xs font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-100 dark:text-orange-400 dark:hover:text-orange-300 dark:hover:bg-orange-900/20 rounded transition-colors"
+                        >
+                          + Click to add
+                        </button>
                       ) : (
                         <button
                           onClick={() => {

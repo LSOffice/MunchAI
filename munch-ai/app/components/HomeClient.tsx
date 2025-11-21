@@ -130,7 +130,7 @@ export default function HomeClient() {
           <div className="flex flex-col items-center text-center">
             <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-medium text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
               <span className="flex h-2 w-2 rounded-full bg-orange-500 mr-2"></span>
-              v2.0 is now live
+              v0.1 is now live
             </div>
 
             <h1 className="max-w-4xl text-5xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-7xl animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100">

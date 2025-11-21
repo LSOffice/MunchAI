@@ -133,6 +133,11 @@ export default function RecipeSearchContent() {
         params.append("mealTypes", mealTypeFilter.join(","));
       }
 
+      // Add cuisine filter
+      if (cuisineFilters.length > 0) {
+        params.append("cuisines", cuisineFilters.join(","));
+      }
+
       // Add total time filter (prepTime + cookTime) based on slider
       params.append("maxTotalTime", maxCookingTime.toString());
 
